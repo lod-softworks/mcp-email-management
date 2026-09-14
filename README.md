@@ -66,18 +66,30 @@ Or set the environment variable:
 AZURE_KEYVAULT_URI=https://<your-key-vault-name>.vault.azure.net/
 ```
 
-### Key Vault Secrets Layout
+### Key Vault Secrets Layout & Email Passwords
 
-Store mailbox connection credentials and client API keys with the hierarchical format:
+Store mailbox connection credentials, email passwords, and client API keys with the hierarchical format:
 
+- `Passwords--<sanitized-email>` or `<sanitized-email>` — Dedicated email password independently named in Key Vault (e.g. `Passwords--email1-firstdomain-net` or `email1-firstdomain-net`). Key Vault only allows alphanumeric characters and hyphens, so characters like `@` and `.` are converted to `-`.
 - `ApiKeys` — JSON array (`["key1", "key2"]`) or comma-separated list of authorized client API keys
 - `ApiKeys--<index>` — Individual indexed authorized API key (e.g. `ApiKeys--0`)
 - `Mailboxes--<mailbox-id>--ImapHost` — e.g. `imap.example.com`
 - `Mailboxes--<mailbox-id>--ImapPort` — e.g. `993`
 - `Mailboxes--<mailbox-id>--ImapSsl` — e.g. `SslOnConnect`
 - `Mailboxes--<mailbox-id>--Username` — e.g. `agent@example.com`
-- `Mailboxes--<mailbox-id>--Password` — Secret password or app password
+- `Mailboxes--<mailbox-id>--Password` — Fallback secret password or app password
 - `Mailboxes--<mailbox-id>--TrashFolderName` — Optional explicit trash folder override
+
+In local settings (`appsettings.json` or User Secrets), email passwords can be independently declared in their own `Passwords` section:
+
+```json
+{
+  "Passwords": {
+    "email1@firstdomain.net": "asdfasdf",
+    "second-email@diffdomain.com": "woah"
+  }
+}
+```
 
 Authentication to Azure Key Vault is handled via `Azure.Identity.DefaultAzureCredential`, supporting Azure CLI (`az login`), environment credentials, Visual Studio credentials, and Azure Managed Identity in production.
 

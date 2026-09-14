@@ -161,14 +161,26 @@ Sensitive settings stored in Key Vault:
 
 | Secret Name Pattern | Purpose |
 |---------------------|---------|
+| `Passwords--{sanitized-email}` or `{sanitized-email}` | Dedicated email password mapped by email address (disallowed characters `@` and `.` converted to `-`) |
 | `ApiKeys` | JSON array (`["key1","key2"]`) or comma-separated authorized client API keys |
 | `ApiKeys--{index}` | Individual indexed authorized client API key |
 | `Mailboxes--{id}--ImapHost` | IMAP server hostname (e.g. `imap.domain.com`) |
 | `Mailboxes--{id}--ImapPort` | IMAP port (e.g. `993`) |
 | `Mailboxes--{id}--ImapSsl` | SSL/TLS mode (`Auto`, `SslOnConnect`, `StartTls`) |
 | `Mailboxes--{id}--Username` | Email address / login account |
-| `Mailboxes--{id}--Password` | App password, access secret, or basic auth password |
+| `Mailboxes--{id}--Password` | Fallback app password, access secret, or basic auth password |
 | `Mailboxes--{id}--TrashFolderName` | Optional folder name override if special folder detection fails |
+
+In local development and non-vault environments, passwords can be declared in a dedicated `"Passwords"` section:
+
+```json
+{
+  "Passwords": {
+    "email1@firstdomain.net": "asdfasdf",
+    "second-email@diffdomain.com": "woah"
+  }
+}
+```
 
 ### Client-Facing Authentication
 

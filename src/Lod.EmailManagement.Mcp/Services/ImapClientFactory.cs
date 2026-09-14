@@ -30,7 +30,23 @@ public class ImapClientFactory(
         }
 
         string password = account.Password;
-        string? secretPassword = await secretService.GetSecret($"Mailboxes--{mailboxId}--Password", cancellationToken);
+        string? secretPassword = null;
+
+        if (!string.IsNullOrWhiteSpace(account.EmailAddress))
+        {
+            secretPassword = await secretService.GetSecret($"Passwords--{account.EmailAddress}", cancellationToken);
+        }
+
+        if (string.IsNullOrWhiteSpace(secretPassword) && !string.IsNullOrWhiteSpace(account.Username))
+        {
+            secretPassword = await secretService.GetSecret($"Passwords--{account.Username}", cancellationToken);
+        }
+
+        if (string.IsNullOrWhiteSpace(secretPassword))
+        {
+            secretPassword = await secretService.GetSecret($"Mailboxes--{mailboxId}--Password", cancellationToken);
+        }
+
         if (!string.IsNullOrWhiteSpace(secretPassword))
         {
             password = secretPassword;

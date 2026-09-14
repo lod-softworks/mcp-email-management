@@ -23,4 +23,8 @@
     <PackageReference Include="Scalar.AspNetCore" Version="2.17.3" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="Lod.EmailManagement.Mcp.Tests" />
+  </ItemGroup>
+
 </Project>
