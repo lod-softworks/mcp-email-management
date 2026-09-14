@@ -9,6 +9,7 @@ Quick index for agents. Update as the repository grows.
 | `REQUIREMENTS.md` | Living PRD and implementation notes |
 | `.agents/rules/` | Universal guardrails and process rules |
 | `.agents/skills/` | Optional stack/workflow skills |
+| `src/Lod.EmailManagement.Mcp/` | ASP.NET Core project root (API & MCP server) |
 
 ## Rules
 

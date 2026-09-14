@@ -2,22 +2,252 @@
 
 Maintain this file as a living requirements and implementation document. Agents should update it as product understanding evolves.
 
-## Project overview
+## Project Overview
 
-<!-- Replace with a short description of what this repository builds and who it serves. -->
+**Email Management MCP** is an ASP.NET Core Web API service that exposes a Model Context Protocol (MCP) server alongside standard RESTful endpoints. It enables autonomous AI agents and automated workflows to securely connect to, inspect, and organize email accounts via standardized tools and REST endpoints.
+
+The service connects to email providers via **IMAP/SMTP** (using MailKit/MimeKit) and retrieves sensitive connection secrets (host configurations, credentials, passwords, tokens) securely from **Azure Key Vault**.
 
 ## Goals
 
-<!-- What outcomes matter? What is explicitly out of scope? -->
+- **Agentic Workflow Enablement**: Expose structured, low-latency MCP tools over Server-Sent Events (SSE) so agents (Cursor, Claude, Copilot, custom agent runners) can inspect and manage emails in real time.
+- **Dual Surface**: Support both remote MCP protocol interactions (`/mcp/sse`, `/mcp/messages`) and standard REST endpoints (`/api/...`) for interoperability.
+- **Protocol Standardization**: Connect to standard email backends via IMAP (for retrieval, folder listing, moving, trashing) and SMTP (for eventual outgoing delivery).
+- **Safe Deletions (Soft Delete / Trash)**: Ensure item trashing always moves messages internally to the designated Trash/Deleted Items folder rather than permanently deleting them from the mail store.
+- **Secure Secrets Management**: Zero hardcoded credentials; all server details, access keys, and passwords are retrieved from Azure Key Vault using `DefaultAzureCredential` / Managed Identity.
+- **Lod Softworks Compliance**: Strict adherence to Lod Softworks engineering conventions: file-scoped namespaces, record classes for models, primary constructors, explicit typing, no `Async` suffix on async methods, and solution layout under `src/`.
 
-## Constraints
+## Non-Goals (Out of Scope for Initial Version)
 
-<!-- Tech stack, hosting, compliance, performance, or organizational constraints. -->
+- Direct POP3 protocol support (IMAP is strictly preferred).
+- Complex offline local message caching / database persistence (the service acts as a stateless gateway to the mail server).
+- Direct end-user client UI (web client or desktop UI); this is an API & MCP protocol gateway.
+- Permanent hard-delete / expunge operations via agent tools.
 
-## Agent guidance
+---
 
-<!-- Link to or summarize repo-specific rules and skills agents must follow beyond the template defaults in AGENTS.md. -->
+## Architecture & System Design
 
-## Implementation notes
+```mermaid
+flowchart TD
+    subgraph Clients["Clients"]
+        Agent["AI Agents (MCP Client)"]
+        HTTPClient["HTTP / REST Clients"]
+    end
 
-<!-- Architecture decisions, module boundaries, APIs, data models — updated as the project grows. -->
+    subgraph Service["Lod.EmailManagement.Mcp (ASP.NET Core)"]
+        subgraph Surface["API & MCP Surface"]
+            MCPEndpoint["MCP Controller / SSE Endpoint (/mcp)"]
+            RESTEndpoint["REST API Controllers (/api)"]
+        end
+
+        subgraph Core["Core Application Layer"]
+            ToolDispatcher["MCP Tool Dispatcher"]
+            MailboxService["IMailboxService"]
+        end
+
+        subgraph Infrastructure["Infrastructure Layer"]
+            KeyVault["Azure Key Vault Provider"]
+            ImapAdapter["MailKit IMAP Adapter"]
+            SmtpAdapter["MailKit SMTP Adapter"]
+        end
+    end
+
+    subgraph External["External Services"]
+        AKV["Azure Key Vault"]
+        MailServer["IMAP / SMTP Mail Server"]
+    end
+
+    Agent -->|SSE / JSON-RPC| MCPEndpoint
+    HTTPClient -->|HTTP / JSON| RESTEndpoint
+    MCPEndpoint --> ToolDispatcher
+    ToolDispatcher --> MailboxService
+    RESTEndpoint --> MailboxService
+    MailboxService --> ImapAdapter
+    MailboxService --> SmtpAdapter
+    ImapAdapter --> KeyVault
+    KeyVault --> AKV
+    ImapAdapter --> MailServer
+    SmtpAdapter --> MailServer
+```
+
+### Component Breakdown
+
+1. **Host & Web Layer (`src/Lod.EmailManagement.Mcp`)**:
+   - ASP.NET Core Web API running on .NET LTS.
+   - Swagger / OpenAPI for REST endpoints.
+   - SSE and JSON-RPC 2.0 message handler for MCP clients.
+2. **MCP Integration Layer**:
+   - Implements the Model Context Protocol specification.
+   - Exposes tools with strict JSON Schema definitions.
+   - Handles transport over Server-Sent Events (SSE) with session management and HTTP POST for messages.
+3. **Domain & Services Layer**:
+   - `IMailboxService`: Core orchestration interface handling mailbox, folder, and item operations.
+   - High-level business logic for folder resolution (e.g. resolving special folders like `Trash`, `Inbox`, `Sent`).
+4. **Email Infrastructure Layer**:
+   - `ImapClientPool` / `IImapClientFactory`: Manages authenticated MailKit `ImapClient` instances.
+   - Translates domain requests into IMAP commands (`Fetch`, `MoveTo`, `Search`).
+5. **Configuration & Secrets Layer**:
+   - Azure Key Vault integration via `Azure.Security.KeyVault.Secrets` and `Azure.Identity`.
+   - Secret naming conventions: `Mailboxes--{MailboxId}--Host`, `Mailboxes--{MailboxId}--Password`, etc.
+
+---
+
+## Functional Requirements
+
+### 1. Mailbox Operations
+
+- **List Mailboxes**:
+  - MCP Tool: `list_mailboxes`
+  - REST: `GET /api/mailboxes`
+  - Returns: Array of configured mailbox profiles (id, display name, email address, incoming server type).
+
+### 2. Folder Operations
+
+- **List Mailbox Folders**:
+  - MCP Tool: `list_folders(mailbox_id)`
+  - REST: `GET /api/mailboxes/{mailboxId}/folders`
+  - Returns: Folder tree hierarchy with metadata (id, name, path, attributes like `\\Inbox`, `\\Trash`, `\\Sent`, unread count, total item count).
+
+### 3. Folder Item Operations
+
+- **List Folder Items**:
+  - MCP Tool: `list_folder_items(mailbox_id, folder_id, limit, offset, unread_only)`
+  - REST: `GET /api/mailboxes/{mailboxId}/folders/{folderId}/items?limit=50&offset=0&unreadOnly=false`
+  - Returns: Paginated list of message headers / summary items (item id, subject, sender, recipients, date received, size, read/flagged status).
+- **Get Item (Full Message)**:
+  - MCP Tool: `get_item(mailbox_id, folder_id, item_id, include_body_html)`
+  - REST: `GET /api/mailboxes/{mailboxId}/folders/{folderId}/items/{itemId}?includeBodyHtml=true`
+  - Returns: Full email representation:
+    - Headers (Subject, From, To, Cc, Bcc, Reply-To, Date, Message-ID)
+    - Body (Plain text body, optional HTML body, snippet)
+    - Attachment metadata (filename, content type, size, content id)
+    - Flags (Seen, Flagged, Answered)
+
+### 4. Item Mutations
+
+- **Move Item**:
+  - MCP Tool: `move_item(mailbox_id, source_folder_id, target_folder_id, item_id)`
+  - REST: `POST /api/mailboxes/{mailboxId}/folders/{sourceFolderId}/items/{itemId}/move`
+  - Body / Arguments: `{ "targetFolderId": "..." }`
+  - Behavior: Relocates message to the target folder using IMAP `MOVE` (or copy + delete flag + expunge fallback).
+- **Trash Item**:
+  - MCP Tool: `trash_item(mailbox_id, folder_id, item_id)`
+  - REST: `POST /api/mailboxes/{mailboxId}/folders/{folderId}/items/{itemId}/trash` (and `DELETE /api/mailboxes/{mailboxId}/folders/{folderId}/items/{itemId}`)
+  - Behavior:
+    - Locates the mailbox's designated Trash folder (using IMAP `SpecialFolder.Trash` attribute or configuration override).
+    - If already in Trash, returns a friendly error or no-op (cannot trash an item already in trash).
+    - Moves the item to the Trash folder internally.
+
+---
+
+## Secrets & Configuration (Azure Key Vault)
+
+### Key Vault Organization
+
+The application requires an Azure Key Vault URI configured via environment variables (`AZURE_KEYVAULT_URI` or `KeyVault:VaultUri`).
+
+Sensitive settings stored in Key Vault:
+
+| Secret Name Pattern | Purpose |
+|---------------------|---------|
+| `Mailboxes--{id}--ImapHost` | IMAP server hostname (e.g. `imap.domain.com`) |
+| `Mailboxes--{id}--ImapPort` | IMAP port (e.g. `993`) |
+| `Mailboxes--{id}--ImapSsl` | SSL/TLS mode (`Auto`, `SslOnConnect`, `StartTls`) |
+| `Mailboxes--{id}--Username` | Email address / login account |
+| `Mailboxes--{id}--Password` | App password, access secret, or basic auth password |
+| `Mailboxes--{id}--TrashFolderName` | Optional folder name override if special folder detection fails |
+
+Authentication to Azure Key Vault is handled transparently by `DefaultAzureCredential`, supporting local developer logins (`az login`, Visual Studio, Azure CLI) and production Managed Identities.
+
+---
+
+## Data Models (C# Records)
+
+In compliance with Lod Softworks standards, all models are declared as `record class`:
+
+```csharp
+namespace Lod.EmailManagement.Mcp.Models;
+
+public record class MailboxSummary(
+    string Id,
+    string DisplayName,
+    string EmailAddress,
+    bool IsActive);
+
+public record class MailboxFolder(
+    string Id,
+    string Name,
+    string FullPath,
+    string? SpecialRole,
+    int TotalCount,
+    int UnreadCount,
+    IReadOnlyList<MailboxFolder> Children);
+
+public record class EmailSummary(
+    string Id,
+    string Subject,
+    EmailAddress From,
+    IReadOnlyList<EmailAddress> To,
+    DateTimeOffset Date,
+    bool IsRead,
+    bool IsFlagged,
+    long SizeInBytes);
+
+public record class EmailDetail(
+    string Id,
+    string Subject,
+    EmailAddress From,
+    IReadOnlyList<EmailAddress> To,
+    IReadOnlyList<EmailAddress> Cc,
+    IReadOnlyList<EmailAddress> Bcc,
+    DateTimeOffset Date,
+    string TextBody,
+    string? HtmlBody,
+    bool IsRead,
+    bool IsFlagged,
+    IReadOnlyList<EmailAttachmentMetadata> Attachments);
+
+public record class EmailAddress(
+    string Address,
+    string? Name);
+
+public record class EmailAttachmentMetadata(
+    string Id,
+    string FileName,
+    string ContentType,
+    long SizeInBytes);
+
+public record class MoveItemRequest(
+    string TargetFolderId);
+
+public record class OperationResult(
+    bool Success,
+    string Message);
+```
+
+---
+
+## Non-Functional Requirements
+
+- **Reliability & Connection Management**: IMAP connections are stateful. The service must manage connections efficiently, handling disconnects, timeouts, and reconnects gracefully without leaking sockets.
+- **Security**:
+  - No secret values or raw passwords appear in logs or API responses.
+  - Path traversal and folder injection prevention on folder paths.
+  - HTML content sanitization when serving message preview bodies to agents to avoid prompt-injection or script-execution vectors.
+- **Performance**:
+  - Paginated fetching (`limit`, `offset`) to prevent memory exhaustion when reading folders with thousands of emails.
+  - Fetch only envelope/header metadata when listing folder items; fetch body parts on demand via `get_item`.
+- **Testing**:
+  - Unit tests with mock IMAP services.
+  - Integration test suite testing against a local mock/containerized IMAP server (e.g. GreenMail).
+
+---
+
+## Agent Guidance & Conventions
+
+- Solution and project files live in `src/` (e.g. `src/Lod.EmailManagement.Mcp/Lod.EmailManagement.Mcp.csproj`).
+- Project namespace: `Lod.EmailManagement.Mcp`.
+- Latest LTS .NET with `<LangVersion>latest</LangVersion>`.
+- Methods are named without the `Async` suffix (e.g. `GetItem(...)`, not `GetItemAsync(...)`).
+- Use explicit types, primary constructors, and `new()`.
