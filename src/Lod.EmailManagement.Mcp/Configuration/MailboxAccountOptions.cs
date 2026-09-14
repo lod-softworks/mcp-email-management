@@ -28,9 +28,5 @@ public record class MailboxAccountOptions
 
     public string Password { get; init; } = string.Empty;
 
-    public string? TrashFolderName { get; init; }
-
-    public string? ArchiveFolderName { get; init; }
-
     public bool IsActive { get; init; } = true;
 }

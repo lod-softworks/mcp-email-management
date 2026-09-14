@@ -83,8 +83,6 @@ Store mailbox connection credentials, email passwords, and client API keys with 
 - `Mailboxes--<mailbox-id>--SmtpSsl` — e.g. `true` or `Auto`
 - `Mailboxes--<mailbox-id>--Username` — e.g. `agent@example.com`
 - `Mailboxes--<mailbox-id>--Password` — Fallback secret password or app password
-- `Mailboxes--<mailbox-id>--TrashFolderName` — Optional explicit trash folder override
-- `Mailboxes--<mailbox-id>--ArchiveFolderName` — Optional explicit archive folder override
 
 In local settings (`appsettings.json` or User Secrets), email passwords can be independently declared in their own `Passwords` section:
 

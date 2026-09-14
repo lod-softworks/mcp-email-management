@@ -207,7 +207,7 @@ public class ImapMailboxService(
         CancellationToken cancellationToken = default)
     {
         using IImapClient client = await clientFactory.CreateConnectedClient(mailboxId, cancellationToken);
-        IMailFolder? trashFolder = ResolveTrashFolder(client, mailboxId);
+        IMailFolder? trashFolder = ResolveTrashFolder(client);
 
         if (trashFolder is null)
         {
@@ -243,7 +243,7 @@ public class ImapMailboxService(
         CancellationToken cancellationToken = default)
     {
         using IImapClient client = await clientFactory.CreateConnectedClient(mailboxId, cancellationToken);
-        IMailFolder? archiveFolder = ResolveArchiveFolder(client, mailboxId);
+        IMailFolder? archiveFolder = ResolveArchiveFolder(client);
 
         if (archiveFolder is null)
         {
@@ -287,27 +287,8 @@ public class ImapMailboxService(
         throw new NotImplementedException("Sending email is not implemented in this version of Email Management MCP.");
     }
 
-    private IMailFolder? ResolveTrashFolder(IImapClient client, string mailboxId)
+    private static IMailFolder? ResolveTrashFolder(IImapClient client)
     {
-        List<MailboxAccountOptions> accounts = configuration.GetSection(MailboxAccountOptions.SectionName).Get<List<MailboxAccountOptions>>() ?? [];
-        MailboxAccountOptions? account = accounts.FirstOrDefault(a => string.Equals(a.Id, mailboxId, StringComparison.OrdinalIgnoreCase));
-
-        if (!string.IsNullOrWhiteSpace(account?.TrashFolderName))
-        {
-            try
-            {
-                IMailFolder customTrash = client.GetFolder(account.TrashFolderName);
-                if (customTrash is not null)
-                {
-                    return customTrash;
-                }
-            }
-            catch
-            {
-                // Fall back to attribute resolution
-            }
-        }
-
         try
         {
             IMailFolder? specialTrash = client.GetFolder(SpecialFolder.Trash);
@@ -360,27 +341,8 @@ public class ImapMailboxService(
         return null;
     }
 
-    private IMailFolder? ResolveArchiveFolder(IImapClient client, string mailboxId)
+    private static IMailFolder? ResolveArchiveFolder(IImapClient client)
     {
-        List<MailboxAccountOptions> accounts = configuration.GetSection(MailboxAccountOptions.SectionName).Get<List<MailboxAccountOptions>>() ?? [];
-        MailboxAccountOptions? account = accounts.FirstOrDefault(a => string.Equals(a.Id, mailboxId, StringComparison.OrdinalIgnoreCase));
-
-        if (!string.IsNullOrWhiteSpace(account?.ArchiveFolderName))
-        {
-            try
-            {
-                IMailFolder customArchive = client.GetFolder(account.ArchiveFolderName);
-                if (customArchive is not null)
-                {
-                    return customArchive;
-                }
-            }
-            catch
-            {
-                // Fall back to attribute resolution
-            }
-        }
-
         try
         {
             IMailFolder? specialArchive = client.GetFolder(SpecialFolder.Archive);

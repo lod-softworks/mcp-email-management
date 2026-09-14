@@ -135,14 +135,14 @@ flowchart TD
   - MCP Tool: `trash_item(mailbox_id, folder_id, item_id)`
   - REST: `POST /api/mailboxes/{mailboxId}/folders/{folderId}/items/{itemId}/trash` (and `DELETE /api/mailboxes/{mailboxId}/folders/{folderId}/items/{itemId}`)
   - Behavior:
-    - Locates the mailbox's designated Trash folder (using IMAP `SpecialFolder.Trash` attribute or configuration override).
+    - Locates the mailbox's designated Trash folder based on IMAP folder attributes (`SpecialFolder.Trash` / `FolderAttributes.Trash`).
     - If already in Trash, returns a friendly error or no-op (cannot trash an item already in trash).
     - Moves the item to the Trash folder internally.
 - **Archive Item**:
   - MCP Tool: `archive_item(mailbox_id, folder_id, item_id)`
   - REST: `POST /api/mailboxes/{mailboxId}/folders/{folderId}/items/{itemId}/archive`
   - Behavior:
-    - Locates the mailbox's designated Archive folder (using IMAP `SpecialFolder.Archive` attribute, `FolderAttributes.Archive`, name match, or configuration override).
+    - Locates the mailbox's designated Archive folder based on IMAP folder attributes (`SpecialFolder.Archive` / `FolderAttributes.Archive`).
     - If already in Archive, returns a friendly error or no-op (cannot archive an item already in archive).
     - Moves the item to the Archive folder internally.
 
@@ -179,8 +179,6 @@ Sensitive settings stored in Key Vault:
 | `Mailboxes--{id}--SmtpSsl` | SMTP SSL/TLS mode (`true`, `Auto`, `SslOnConnect`, `StartTls`) |
 | `Mailboxes--{id}--Username` | Email address / login account |
 | `Mailboxes--{id}--Password` | Fallback app password, access secret, or basic auth password |
-| `Mailboxes--{id}--TrashFolderName` | Optional folder name override if special folder detection fails |
-| `Mailboxes--{id}--ArchiveFolderName` | Optional folder name override if special folder detection fails |
 
 In local development and non-vault environments, passwords can be declared in a dedicated `"Passwords"` section:
 
