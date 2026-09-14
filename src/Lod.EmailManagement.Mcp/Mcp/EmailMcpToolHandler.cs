@@ -77,6 +77,18 @@ public class EmailMcpToolHandler(
                 },
                 ["mailbox_id", "folder_id", "item_id"])),
         new(
+            "archive_item",
+            "Moves an email message to the designated Archive folder for the mailbox.",
+            new(
+                "object",
+                new()
+                {
+                    ["mailbox_id"] = new { type = "string", description = "The mailbox ID." },
+                    ["folder_id"] = new { type = "string", description = "Current folder path of the item." },
+                    ["item_id"] = new { type = "string", description = "The email message unique ID." }
+                },
+                ["mailbox_id", "folder_id", "item_id"])),
+        new(
             "send_email",
             "Sends an email message from the specified mailbox.",
             new(
@@ -215,6 +227,16 @@ public class EmailMcpToolHandler(
                     string itemId = GetRequiredString(arguments, "item_id");
 
                     OperationResult result = await mailboxService.TrashItem(mailboxId, folderId, itemId, cancellationToken);
+                    return McpToolCallResult.Json(result);
+                }
+
+                case "archive_item":
+                {
+                    string mailboxId = GetRequiredString(arguments, "mailbox_id");
+                    string folderId = GetRequiredString(arguments, "folder_id");
+                    string itemId = GetRequiredString(arguments, "item_id");
+
+                    OperationResult result = await mailboxService.ArchiveItem(mailboxId, folderId, itemId, cancellationToken);
                     return McpToolCallResult.Json(result);
                 }
 

@@ -162,6 +162,37 @@ public class MailboxesController(IMailboxService mailboxService) : ControllerBas
         }
     }
 
+    [HttpPost("{mailboxId}/folders/{folderId}/items/{itemId}/archive")]
+    [ProducesResponseType(typeof(OperationResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(OperationResult), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<OperationResult>> ArchiveItem(
+        string mailboxId,
+        string folderId,
+        string itemId,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            OperationResult result = await mailboxService.ArchiveItem(
+                mailboxId,
+                folderId,
+                itemId,
+                cancellationToken);
+
+            if (!result.Success)
+            {
+                return BadRequest(result);
+            }
+
+            return Ok(result);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { error = ex.Message });
+        }
+    }
+
     [HttpDelete("{mailboxId}/folders/{folderId}/items/{itemId}")]
     [ProducesResponseType(typeof(OperationResult), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(OperationResult), StatusCodes.Status400BadRequest)]

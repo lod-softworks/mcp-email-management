@@ -236,6 +236,42 @@ public class ImapMailboxService(
         return new OperationResult(false, $"Failed to move item {itemId} to Trash ('{trashFolder.FullName}').");
     }
 
+    public async Task<OperationResult> ArchiveItem(
+        string mailboxId,
+        string folderId,
+        string itemId,
+        CancellationToken cancellationToken = default)
+    {
+        using IImapClient client = await clientFactory.CreateConnectedClient(mailboxId, cancellationToken);
+        IMailFolder? archiveFolder = ResolveArchiveFolder(client, mailboxId);
+
+        if (archiveFolder is null)
+        {
+            return new OperationResult(false, $"Archive folder could not be located for mailbox '{mailboxId}'.");
+        }
+
+        if (string.Equals(folderId, archiveFolder.FullName, StringComparison.OrdinalIgnoreCase))
+        {
+            return new OperationResult(false, $"Item {itemId} is already in the Archive folder '{archiveFolder.FullName}'.");
+        }
+
+        IMailFolder sourceFolder = await client.GetFolderAsync(folderId, cancellationToken);
+        await sourceFolder.OpenAsync(FolderAccess.ReadWrite, cancellationToken);
+
+        if (!UniqueId.TryParse(itemId, out UniqueId uid))
+        {
+            return new OperationResult(false, $"Invalid item UniqueId '{itemId}'.");
+        }
+
+        UniqueId? movedUid = await sourceFolder.MoveToAsync(uid, archiveFolder, cancellationToken);
+        if (movedUid is not null)
+        {
+            return new OperationResult(true, $"Item {itemId} successfully moved to Archive ('{archiveFolder.FullName}').");
+        }
+
+        return new OperationResult(false, $"Failed to move item {itemId} to Archive ('{archiveFolder.FullName}').");
+    }
+
     public Task<OperationResult> SendEmail(
         string mailboxId,
         SendEmailRequest request,
@@ -315,6 +351,77 @@ public class ImapMailboxService(
         foreach (IMailFolder sub in folder.GetSubfolders(false))
         {
             IMailFolder? match = FindTrashRecursive(sub);
+            if (match is not null)
+            {
+                return match;
+            }
+        }
+
+        return null;
+    }
+
+    private IMailFolder? ResolveArchiveFolder(IImapClient client, string mailboxId)
+    {
+        List<MailboxAccountOptions> accounts = configuration.GetSection(MailboxAccountOptions.SectionName).Get<List<MailboxAccountOptions>>() ?? [];
+        MailboxAccountOptions? account = accounts.FirstOrDefault(a => string.Equals(a.Id, mailboxId, StringComparison.OrdinalIgnoreCase));
+
+        if (!string.IsNullOrWhiteSpace(account?.ArchiveFolderName))
+        {
+            try
+            {
+                IMailFolder customArchive = client.GetFolder(account.ArchiveFolderName);
+                if (customArchive is not null)
+                {
+                    return customArchive;
+                }
+            }
+            catch
+            {
+                // Fall back to attribute resolution
+            }
+        }
+
+        try
+        {
+            IMailFolder? specialArchive = client.GetFolder(SpecialFolder.Archive);
+            if (specialArchive is not null)
+            {
+                return specialArchive;
+            }
+        }
+        catch
+        {
+            // Fall back to searching personal folders
+        }
+
+        foreach (FolderNamespace ns in client.PersonalNamespaces)
+        {
+            IMailFolder? rootFolder = client.GetFolder(ns.Path);
+            if (rootFolder is not null)
+            {
+                IMailFolder? found = FindArchiveRecursive(rootFolder);
+                if (found is not null)
+                {
+                    return found;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private static IMailFolder? FindArchiveRecursive(IMailFolder folder)
+    {
+        if (folder.Attributes.HasFlag(FolderAttributes.Archive) ||
+            string.Equals(folder.Name, "Archive", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(folder.Name, "Archives", StringComparison.OrdinalIgnoreCase))
+        {
+            return folder;
+        }
+
+        foreach (IMailFolder sub in folder.GetSubfolders(false))
+        {
+            IMailFolder? match = FindArchiveRecursive(sub);
             if (match is not null)
             {
                 return match;

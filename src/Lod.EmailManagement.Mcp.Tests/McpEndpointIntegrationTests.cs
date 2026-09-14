@@ -88,6 +88,7 @@ public class McpEndpointIntegrationTests : IClassFixture<WebApplicationFactory<P
         content.Should().Contain("get_item");
         content.Should().Contain("move_item");
         content.Should().Contain("trash_item");
+        content.Should().Contain("archive_item");
         content.Should().Contain("send_email");
     }
 }

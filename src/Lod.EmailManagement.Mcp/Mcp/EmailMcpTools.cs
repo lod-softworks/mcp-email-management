@@ -66,6 +66,16 @@ public class EmailMcpTools(IMailboxService mailboxService)
         return await mailboxService.TrashItem(mailboxId, folderId, itemId, cancellationToken);
     }
 
+    [McpServerTool, Description("Moves an email message to the designated Archive folder for the mailbox.")]
+    public async Task<OperationResult> ArchiveItem(
+        [Description("The mailbox ID.")] string mailboxId,
+        [Description("Current folder path of the item.")] string folderId,
+        [Description("The email message unique ID.")] string itemId,
+        CancellationToken cancellationToken = default)
+    {
+        return await mailboxService.ArchiveItem(mailboxId, folderId, itemId, cancellationToken);
+    }
+
     [McpServerTool, Description("Sends an email message from the specified mailbox.")]
     public async Task<OperationResult> SendEmail(
         [Description("The mailbox ID to send from.")] string mailboxId,

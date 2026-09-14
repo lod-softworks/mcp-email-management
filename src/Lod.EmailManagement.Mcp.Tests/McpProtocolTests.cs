@@ -65,7 +65,7 @@ public class McpProtocolTests
         response.Should().NotBeNull();
         McpToolsListResult? result = response!.Result as McpToolsListResult;
         result.Should().NotBeNull();
-        result!.Tools.Should().HaveCount(7);
+        result!.Tools.Should().HaveCount(8);
 
         List<string> toolNames = result.Tools.Select(t => t.Name).ToList();
         toolNames.Should().Contain([
@@ -75,6 +75,7 @@ public class McpProtocolTests
             "get_item",
             "move_item",
             "trash_item",
+            "archive_item",
             "send_email"
         ]);
     }
@@ -171,6 +172,24 @@ public class McpProtocolTests
         result.Should().NotBeNull();
         result!.IsError.Should().BeFalse();
         result.Content[0].Text.Should().Contain("Moved to Trash.");
+    }
+
+    [Fact]
+    public async Task CallArchiveItemExecutesService()
+    {
+        _mailboxServiceMock.Setup(s => s.ArchiveItem("work", "INBOX", "100", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new OperationResult(true, "Moved to Archive."));
+
+        string jsonParams = """{"name": "archive_item", "arguments": {"mailbox_id": "work", "folder_id": "INBOX", "item_id": "100"}}""";
+        McpRequest request = new("2.0", JsonDocument.Parse("71").RootElement, "tools/call", JsonDocument.Parse(jsonParams).RootElement);
+
+        McpResponse? response = await _handler.ProcessRequest(request);
+
+        response.Should().NotBeNull();
+        McpToolCallResult? result = response!.Result as McpToolCallResult;
+        result.Should().NotBeNull();
+        result!.IsError.Should().BeFalse();
+        result.Content[0].Text.Should().Contain("Moved to Archive.");
     }
 
     [Fact]

@@ -13,7 +13,7 @@ An ASP.NET Core API providing a dual Model Context Protocol (MCP) and REST inter
   - Fetch message summaries with pagination and unread filters.
   - Retrieve full email details including plain text, HTML bodies, headers, and attachment metadata.
   - Move messages between folders.
-  - Safely trash messages (automatically resolves designated Trash folders and moves them internally).
+  - Safely trash or archive messages (automatically resolves designated Trash and Archive folders and moves them internally).
 - **Azure Key Vault Secrets**: Zero hardcoded credentials; IMAP/SMTP hosts, ports, usernames, and passwords/tokens are retrieved dynamically from Azure Key Vault using `DefaultAzureCredential`.
 - **Lod Softworks Architecture**: Built on modern .NET LTS following clean architecture, primary constructors, C# record types, and file-scoped namespaces.
 
@@ -31,6 +31,7 @@ When connected via an MCP client, the following tools are exposed:
 | `get_item` | `mailbox_id`, `folder_id`, `item_id`, `include_body_html?` | Retrieves full email content, headers, body, and attachment metadata. |
 | `move_item` | `mailbox_id`, `source_folder_id`, `target_folder_id`, `item_id` | Moves an email message to a different target folder. |
 | `trash_item` | `mailbox_id`, `folder_id`, `item_id` | Moves an email message to the mailbox's designated Trash folder. |
+| `archive_item` | `mailbox_id`, `folder_id`, `item_id` | Moves an email message to the mailbox's designated Archive folder. |
 | `send_email` | `mailbox_id`, `to`, `subject`, `body_text`, `body_html?`, `cc?`, `bcc?` | Sends an email (currently logs attempt and throws `NotImplementedException`). |
 
 ---
@@ -45,6 +46,7 @@ The service also exposes standard REST endpoints:
 - `GET /api/mailboxes/{mailboxId}/folders/{folderId}/items/{itemId}` — Get email details
 - `POST /api/mailboxes/{mailboxId}/folders/{sourceFolderId}/items/{itemId}/move` — Move an item
 - `POST /api/mailboxes/{mailboxId}/folders/{folderId}/items/{itemId}/trash` — Trash an item (or `DELETE`)
+- `POST /api/mailboxes/{mailboxId}/folders/{folderId}/items/{itemId}/archive` — Archive an item
 - `POST /api/mailboxes/{mailboxId}/send` — Send an email (logs attempt and returns 501 / throws `NotImplementedException`)
 
 ---
@@ -82,6 +84,7 @@ Store mailbox connection credentials, email passwords, and client API keys with 
 - `Mailboxes--<mailbox-id>--Username` — e.g. `agent@example.com`
 - `Mailboxes--<mailbox-id>--Password` — Fallback secret password or app password
 - `Mailboxes--<mailbox-id>--TrashFolderName` — Optional explicit trash folder override
+- `Mailboxes--<mailbox-id>--ArchiveFolderName` — Optional explicit archive folder override
 
 In local settings (`appsettings.json` or User Secrets), email passwords can be independently declared in their own `Passwords` section:
 

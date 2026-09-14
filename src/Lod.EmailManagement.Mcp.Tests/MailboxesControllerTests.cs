@@ -113,6 +113,34 @@ public class MailboxesControllerTests
     }
 
     [Fact]
+    public async Task ArchiveItemReturnsOkWhenSuccessful()
+    {
+        _mailboxServiceMock.Setup(s => s.ArchiveItem("main", "INBOX", "1", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new OperationResult(true, "Moved to archive"));
+
+        ActionResult<OperationResult> result = await _controller.ArchiveItem("main", "INBOX", "1", CancellationToken.None);
+
+        OkObjectResult? okResult = result.Result as OkObjectResult;
+        okResult.Should().NotBeNull();
+        OperationResult? op = okResult!.Value as OperationResult;
+        op!.Success.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task ArchiveItemReturnsBadRequestWhenFailed()
+    {
+        _mailboxServiceMock.Setup(s => s.ArchiveItem("main", "Archive", "1", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new OperationResult(false, "Already in archive"));
+
+        ActionResult<OperationResult> result = await _controller.ArchiveItem("main", "Archive", "1", CancellationToken.None);
+
+        BadRequestObjectResult? badResult = result.Result as BadRequestObjectResult;
+        badResult.Should().NotBeNull();
+        OperationResult? op = badResult!.Value as OperationResult;
+        op!.Success.Should().BeFalse();
+    }
+
+    [Fact]
     public async Task SendEmailThrowsNotImplementedException()
     {
         _mailboxServiceMock.Setup(s => s.SendEmail("main", It.IsAny<SendEmailRequest>(), It.IsAny<CancellationToken>()))

@@ -90,6 +90,18 @@ public class EmailMcpToolsTests
     }
 
     [Fact]
+    public async Task ArchiveItemCallsService()
+    {
+        OperationResult expected = new(true, "Item archived");
+        _mailboxServiceMock.Setup(s => s.ArchiveItem("work", "INBOX", "1", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(expected);
+
+        OperationResult result = await _tools.ArchiveItem("work", "INBOX", "1");
+
+        result.Should().Be(expected);
+    }
+
+    [Fact]
     public async Task SendEmailCallsServiceAndThrowsNotImplementedException()
     {
         _mailboxServiceMock.Setup(s => s.SendEmail("work", It.IsAny<SendEmailRequest>(), It.IsAny<CancellationToken>()))

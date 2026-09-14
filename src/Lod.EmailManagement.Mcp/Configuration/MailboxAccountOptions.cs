@@ -30,5 +30,7 @@ public record class MailboxAccountOptions
 
     public string? TrashFolderName { get; init; }
 
+    public string? ArchiveFolderName { get; init; }
+
     public bool IsActive { get; init; } = true;
 }
