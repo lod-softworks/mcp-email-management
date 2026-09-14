@@ -167,6 +167,9 @@ Sensitive settings stored in Key Vault:
 | `Mailboxes--{id}--ImapHost` | IMAP server hostname (e.g. `imap.domain.com`) |
 | `Mailboxes--{id}--ImapPort` | IMAP port (e.g. `993`) |
 | `Mailboxes--{id}--ImapSsl` | SSL/TLS mode (`Auto`, `SslOnConnect`, `StartTls`) |
+| `Mailboxes--{id}--SmtpHost` | SMTP server hostname (e.g. `smtp.domain.com`) |
+| `Mailboxes--{id}--SmtpPort` | SMTP port (e.g. `587`) |
+| `Mailboxes--{id}--SmtpSsl` | SMTP SSL/TLS mode (`true`, `Auto`, `SslOnConnect`, `StartTls`) |
 | `Mailboxes--{id}--Username` | Email address / login account |
 | `Mailboxes--{id}--Password` | Fallback app password, access secret, or basic auth password |
 | `Mailboxes--{id}--TrashFolderName` | Optional folder name override if special folder detection fails |

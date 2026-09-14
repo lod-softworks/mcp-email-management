@@ -76,6 +76,9 @@ Store mailbox connection credentials, email passwords, and client API keys with 
 - `Mailboxes--<mailbox-id>--ImapHost` — e.g. `imap.example.com`
 - `Mailboxes--<mailbox-id>--ImapPort` — e.g. `993`
 - `Mailboxes--<mailbox-id>--ImapSsl` — e.g. `SslOnConnect`
+- `Mailboxes--<mailbox-id>--SmtpHost` — e.g. `smtp.example.com`
+- `Mailboxes--<mailbox-id>--SmtpPort` — e.g. `587`
+- `Mailboxes--<mailbox-id>--SmtpSsl` — e.g. `true` or `Auto`
 - `Mailboxes--<mailbox-id>--Username` — e.g. `agent@example.com`
 - `Mailboxes--<mailbox-id>--Password` — Fallback secret password or app password
 - `Mailboxes--<mailbox-id>--TrashFolderName` — Optional explicit trash folder override
