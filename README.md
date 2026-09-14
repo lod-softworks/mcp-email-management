@@ -5,8 +5,8 @@ An ASP.NET Core API providing a dual Model Context Protocol (MCP) and REST inter
 ## Features
 
 - **Dual Surface (MCP & REST)**:
-  - **MCP Server**: Connect agentic workflows (Cursor, Claude Desktop, Copilot, custom agents) using Server-Sent Events (SSE).
-  - **REST API**: Standard HTTP endpoints with Swagger / OpenAPI documentation for direct service integration.
+  - **MCP Server**: Powered by the official [`ModelContextProtocol.AspNetCore`](https://www.nuget.org/packages/ModelContextProtocol.AspNetCore) SDK for Streamable HTTP / SSE transport.
+  - **REST API**: Standard HTTP endpoints with interactive [Scalar](https://github.com/scalar/scalar) API documentation (`/scalar/v1`) for direct service integration.
 - **IMAP / SMTP Support**: Standardized communication with email providers (Office 365, Gmail, custom email hosts) powered by [MailKit](https://github.com/jstedfast/MailKit).
 - **Mailbox & Folder Navigation**: List configured mailboxes, discover folder hierarchies, and inspect unread/total message counts.
 - **Message Inspection & Organization**:
@@ -95,13 +95,13 @@ All API and MCP endpoints require an authorized API key. You can pass the key in
 
 ## Connecting AI Agents (MCP)
 
-To connect an MCP client (such as Cursor or Claude Desktop) using Server-Sent Events (SSE):
+To connect an MCP client (such as Cursor or Claude Desktop) using Streamable HTTP / SSE:
 
 ```json
 {
   "mcpServers": {
     "email-management": {
-      "url": "http://localhost:5000/mcp/sse?apiKey=your-api-key"
+      "url": "http://localhost:5000/mcp?apiKey=your-api-key"
     }
   }
 }
@@ -113,7 +113,7 @@ Or using custom headers if supported by the MCP client:
 {
   "mcpServers": {
     "email-management": {
-      "url": "http://localhost:5000/mcp/sse",
+      "url": "http://localhost:5000/mcp",
       "headers": {
         "X-API-Key": "your-api-key"
       }

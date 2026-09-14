@@ -25,7 +25,11 @@ builder.Services.AddSingleton<ISecretService, KeyVaultSecretService>();
 builder.Services.AddSingleton<IImapClientFactory, ImapClientFactory>();
 builder.Services.AddScoped<IMailboxService, ImapMailboxService>();
 
-// MCP Services
+// MCP Services (Official ModelContextProtocol SDK)
+builder.Services.AddMcpServer()
+    .WithHttpTransport()
+    .WithTools<EmailMcpTools>();
+
 builder.Services.AddSingleton<McpSessionManager>();
 builder.Services.AddScoped<IMcpToolHandler, EmailMcpToolHandler>();
 
@@ -39,6 +43,7 @@ if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
     app.MapScalarApiReference();
+    app.MapGet("", () => Results.Redirect("/scalar"));
 }
 
 app.UseHttpsRedirection();
@@ -46,6 +51,9 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapMcp("/mcp").RequireAuthorization();
 app.MapMcpEndpoints();
 
-app.Run();
+await app.RunAsync();
+
+public partial class Program { }

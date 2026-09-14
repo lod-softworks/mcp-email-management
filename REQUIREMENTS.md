@@ -78,9 +78,9 @@ flowchart TD
    - Swagger / OpenAPI for REST endpoints.
    - SSE and JSON-RPC 2.0 message handler for MCP clients.
 2. **MCP Integration Layer**:
-   - Implements the Model Context Protocol specification.
-   - Exposes tools with strict JSON Schema definitions.
-   - Handles transport over Server-Sent Events (SSE) with session management and HTTP POST for messages.
+   - Implements the Model Context Protocol specification powered by the official `ModelContextProtocol.AspNetCore` SDK.
+   - Discovers and exposes tools via `[McpServerToolType]` and `[McpServerTool]` (`EmailMcpTools`).
+   - Supports Streamable HTTP / SSE transport via `app.MapMcp("/mcp")` protected by API key authentication.
 3. **Domain & Services Layer**:
    - `IMailboxService`: Core orchestration interface handling mailbox, folder, and item operations.
    - High-level business logic for folder resolution (e.g. resolving special folders like `Trash`, `Inbox`, `Sent`).

@@ -29,7 +29,7 @@ public class EmailMcpToolHandler(
             "Lists email summaries in a specified mailbox folder with pagination and optional unread filter.",
             new(
                 "object",
-                new Dictionary<string, object>
+                new()
                 {
                     ["mailbox_id"] = new { type = "string", description = "The mailbox ID." },
                     ["folder_id"] = new { type = "string", description = "The folder path or ID (e.g. 'INBOX')." },
@@ -43,7 +43,7 @@ public class EmailMcpToolHandler(
             "Retrieves full email details including headers, plain text and HTML bodies, and attachment metadata.",
             new(
                 "object",
-                new Dictionary<string, object>
+                new()
                 {
                     ["mailbox_id"] = new { type = "string", description = "The mailbox ID." },
                     ["folder_id"] = new { type = "string", description = "The folder path or ID." },
@@ -56,7 +56,7 @@ public class EmailMcpToolHandler(
             "Moves an email message from a source folder to a target folder.",
             new(
                 "object",
-                new Dictionary<string, object>
+                new()
                 {
                     ["mailbox_id"] = new { type = "string", description = "The mailbox ID." },
                     ["source_folder_id"] = new { type = "string", description = "Current folder path of the item." },
@@ -69,7 +69,7 @@ public class EmailMcpToolHandler(
             "Moves an email message to the designated Trash folder for the mailbox.",
             new(
                 "object",
-                new Dictionary<string, object>
+                new()
                 {
                     ["mailbox_id"] = new { type = "string", description = "The mailbox ID." },
                     ["folder_id"] = new { type = "string", description = "Current folder path of the item." },
@@ -81,7 +81,7 @@ public class EmailMcpToolHandler(
             "Sends an email message from the specified mailbox.",
             new(
                 "object",
-                new Dictionary<string, object>
+                new()
                 {
                     ["mailbox_id"] = new { type = "string", description = "The mailbox ID to send from." },
                     ["to"] = new { type = "array", items = new { type = "string" }, description = "List of recipient email addresses." },
