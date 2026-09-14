@@ -270,7 +270,7 @@ public record class OperationResult(
 
 ## Agent Guidance & Conventions
 
-- Solution and project files live in `src/` (e.g. `src/Lod.EmailManagement.Mcp/Lod.EmailManagement.Mcp.csproj`).
+- Solution file lives at repository root (`Lod.EmailManagement.slnx`); project source and test directories live under `src/` (e.g. `src/Lod.EmailManagement.Mcp/Lod.EmailManagement.Mcp.csproj`).
 - Project namespace: `Lod.EmailManagement.Mcp`.
 - Latest LTS .NET with `<LangVersion>latest</LangVersion>`.
 - Methods are named without the `Async` suffix (e.g. `GetItem(...)`, not `GetItemAsync(...)`).

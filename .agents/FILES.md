@@ -7,6 +7,7 @@ Quick index for agents. Update as the repository grows.
 | `AGENTS.md` | Agent entry point; rules and skills index |
 | `README.md` | Human-facing project overview |
 | `REQUIREMENTS.md` | Living PRD and implementation notes |
+| `Lod.EmailManagement.slnx` | Solution file (at repository root) |
 | `.agents/rules/` | Universal guardrails and process rules |
 | `.agents/skills/` | Optional stack/workflow skills |
 | `src/Lod.EmailManagement.Mcp/` | ASP.NET Core project root (API & MCP server) |
