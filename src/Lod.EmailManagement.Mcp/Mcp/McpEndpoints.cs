@@ -21,7 +21,8 @@ public static class McpEndpoints
         })
         .WithName("McpSseEndpoint")
         .WithDescription("Server-Sent Events endpoint for MCP protocol connection.")
-        .WithTags("MCP");
+        .WithTags("MCP")
+        .RequireAuthorization();
 
         endpoints.MapPost("/mcp/messages", async (
             HttpContext context,
@@ -52,7 +53,8 @@ public static class McpEndpoints
         })
         .WithName("McpMessagesEndpoint")
         .WithDescription("Message endpoint for sending MCP JSON-RPC requests.")
-        .WithTags("MCP");
+        .WithTags("MCP")
+        .RequireAuthorization();
 
         return endpoints;
     }

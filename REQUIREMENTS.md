@@ -151,12 +151,26 @@ Sensitive settings stored in Key Vault:
 
 | Secret Name Pattern | Purpose |
 |---------------------|---------|
+| `ApiKeys` | JSON array (`["key1","key2"]`) or comma-separated authorized client API keys |
+| `ApiKeys--{index}` | Individual indexed authorized client API key |
 | `Mailboxes--{id}--ImapHost` | IMAP server hostname (e.g. `imap.domain.com`) |
 | `Mailboxes--{id}--ImapPort` | IMAP port (e.g. `993`) |
 | `Mailboxes--{id}--ImapSsl` | SSL/TLS mode (`Auto`, `SslOnConnect`, `StartTls`) |
 | `Mailboxes--{id}--Username` | Email address / login account |
 | `Mailboxes--{id}--Password` | App password, access secret, or basic auth password |
 | `Mailboxes--{id}--TrashFolderName` | Optional folder name override if special folder detection fails |
+
+### Client-Facing Authentication
+
+All client-facing endpoints (`/mcp/sse`, `/mcp/messages`, and `/api/...`) enforce API key authentication:
+
+- **Supported Token Passing Mechanisms**:
+  - `X-API-Key: <token>` header (standard API clients).
+  - `Authorization: Bearer <token>` or `Authorization: ApiKey <token>` header.
+  - `?apiKey=<token>` or `?api_key=<token>` query string (vital for browser/client `EventSource` connections unable to send custom headers).
+- **Validation & Performance**:
+  - Valid keys are fetched from Azure Key Vault (`ApiKeys` / `ApiKeys--{index}`) and cached locally in memory (`IMemoryCache`) with sliding expiration.
+  - Constant-time string matching via `CryptographicOperations.FixedTimeEquals` prevents timing analysis attacks.
 
 Authentication to Azure Key Vault is handled transparently by `DefaultAzureCredential`, supporting local developer logins (`az login`, Visual Studio, Azure CLI) and production Managed Identities.
 

@@ -66,8 +66,10 @@ AZURE_KEYVAULT_URI=https://<your-key-vault-name>.vault.azure.net/
 
 ### Key Vault Secrets Layout
 
-Store mailbox connection credentials with the double-dash hierarchical format:
+Store mailbox connection credentials and client API keys with the hierarchical format:
 
+- `ApiKeys` — JSON array (`["key1", "key2"]`) or comma-separated list of authorized client API keys
+- `ApiKeys--<index>` — Individual indexed authorized API key (e.g. `ApiKeys--0`)
 - `Mailboxes--<mailbox-id>--ImapHost` — e.g. `imap.example.com`
 - `Mailboxes--<mailbox-id>--ImapPort` — e.g. `993`
 - `Mailboxes--<mailbox-id>--ImapSsl` — e.g. `SslOnConnect`
@@ -79,6 +81,16 @@ Authentication to Azure Key Vault is handled via `Azure.Identity.DefaultAzureCre
 
 ---
 
+## Client Authentication
+
+All API and MCP endpoints require an authorized API key. You can pass the key in three ways:
+
+1. **Header**: `X-API-Key: <your-api-key>`
+2. **Authorization Header**: `Authorization: Bearer <your-api-key>`
+3. **Query Parameter**: `?apiKey=<your-api-key>` or `?api_key=<your-api-key>` (ideal for SSE `EventSource` clients)
+
+---
+
 ## Connecting AI Agents (MCP)
 
 To connect an MCP client (such as Cursor or Claude Desktop) using Server-Sent Events (SSE):
@@ -87,7 +99,22 @@ To connect an MCP client (such as Cursor or Claude Desktop) using Server-Sent Ev
 {
   "mcpServers": {
     "email-management": {
-      "url": "http://localhost:5000/mcp/sse"
+      "url": "http://localhost:5000/mcp/sse?apiKey=your-api-key"
+    }
+  }
+}
+```
+
+Or using custom headers if supported by the MCP client:
+
+```json
+{
+  "mcpServers": {
+    "email-management": {
+      "url": "http://localhost:5000/mcp/sse",
+      "headers": {
+        "X-API-Key": "your-api-key"
+      }
     }
   }
 }

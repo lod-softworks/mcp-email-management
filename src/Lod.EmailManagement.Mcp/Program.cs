@@ -1,13 +1,25 @@
+using Lod.EmailManagement.Mcp.Authentication;
 using Lod.EmailManagement.Mcp.Configuration;
 using Lod.EmailManagement.Mcp.Mcp;
 using Lod.EmailManagement.Mcp.Services;
+using Microsoft.AspNetCore.Authentication;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
 // Configuration options
 builder.Services.Configure<KeyVaultOptions>(builder.Configuration.GetSection(KeyVaultOptions.SectionName));
+builder.Services.Configure<ApiKeyOptions>(builder.Configuration.GetSection(ApiKeyOptions.SectionName));
 
-// Services
+// Caching
+builder.Services.AddMemoryCache();
+
+// Security & Authentication
+builder.Services.AddSingleton<IApiKeyValidator, ApiKeyValidator>();
+builder.Services.AddAuthentication(ApiKeyAuthenticationHandler.SchemeName)
+    .AddScheme<AuthenticationSchemeOptions, ApiKeyAuthenticationHandler>(ApiKeyAuthenticationHandler.SchemeName, null);
+builder.Services.AddAuthorization();
+
+// Core Services
 builder.Services.AddSingleton<ISecretService, KeyVaultSecretService>();
 builder.Services.AddSingleton<IImapClientFactory, ImapClientFactory>();
 builder.Services.AddScoped<IMailboxService, ImapMailboxService>();
@@ -28,6 +40,9 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseAuthentication();
+app.UseAuthorization();
+
 app.MapControllers();
 app.MapMcpEndpoints();
 

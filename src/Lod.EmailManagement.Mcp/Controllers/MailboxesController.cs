@@ -1,9 +1,11 @@
 using Lod.EmailManagement.Mcp.Models;
 using Lod.EmailManagement.Mcp.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Lod.EmailManagement.Mcp.Controllers;
 
+[Authorize]
 [ApiController]
 [Route("api/[controller]")]
 [Produces("application/json")]
