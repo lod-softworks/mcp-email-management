@@ -75,7 +75,23 @@ public class EmailMcpToolHandler(
                     ["folder_id"] = new { type = "string", description = "Current folder path of the item." },
                     ["item_id"] = new { type = "string", description = "The email message unique ID." }
                 },
-                ["mailbox_id", "folder_id", "item_id"]))
+                ["mailbox_id", "folder_id", "item_id"])),
+        new(
+            "send_email",
+            "Sends an email message from the specified mailbox.",
+            new(
+                "object",
+                new Dictionary<string, object>
+                {
+                    ["mailbox_id"] = new { type = "string", description = "The mailbox ID to send from." },
+                    ["to"] = new { type = "array", items = new { type = "string" }, description = "List of recipient email addresses." },
+                    ["subject"] = new { type = "string", description = "The email subject line." },
+                    ["body_text"] = new { type = "string", description = "The plain text email body content." },
+                    ["body_html"] = new { type = "string", description = "Optional HTML email body content." },
+                    ["cc"] = new { type = "array", items = new { type = "string" }, description = "Optional list of CC recipient email addresses." },
+                    ["bcc"] = new { type = "array", items = new { type = "string" }, description = "Optional list of BCC recipient email addresses." }
+                },
+                ["mailbox_id", "to", "subject", "body_text"]))
     ];
 
     public IReadOnlyList<McpTool> GetTools() => Tools;
@@ -122,6 +138,10 @@ public class EmailMcpToolHandler(
                 default:
                     return McpResponse.Fail(request.Id, -32601, $"Method '{request.Method}' not found");
             }
+        }
+        catch (NotImplementedException)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -198,9 +218,28 @@ public class EmailMcpToolHandler(
                     return McpToolCallResult.Json(result);
                 }
 
+                case "send_email":
+                {
+                    string mailboxId = GetRequiredString(arguments, "mailbox_id");
+                    string subject = GetRequiredString(arguments, "subject");
+                    string bodyText = GetRequiredString(arguments, "body_text");
+                    string? bodyHtml = GetOptionalString(arguments, "body_html");
+                    List<string> to = GetStringList(arguments, "to");
+                    List<string>? cc = GetOptionalStringList(arguments, "cc");
+                    List<string>? bcc = GetOptionalStringList(arguments, "bcc");
+
+                    SendEmailRequest sendRequest = new(to, subject, bodyText, bodyHtml, cc, bcc);
+                    OperationResult result = await mailboxService.SendEmail(mailboxId, sendRequest, cancellationToken);
+                    return McpToolCallResult.Json(result);
+                }
+
                 default:
                     return McpToolCallResult.Text($"Unknown tool: '{toolName}'", true);
             }
+        }
+        catch (NotImplementedException)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -221,6 +260,70 @@ public class EmailMcpToolHandler(
         }
 
         throw new ArgumentException($"Missing required argument '{propertyName}'.");
+    }
+
+    private static string? GetOptionalString(JsonElement? element, string propertyName)
+    {
+        if (element.HasValue && element.Value.TryGetProperty(propertyName, out JsonElement prop) && prop.ValueKind == JsonValueKind.String)
+        {
+            return prop.GetString();
+        }
+
+        return null;
+    }
+
+    private static List<string> GetStringList(JsonElement? element, string propertyName)
+    {
+        if (element.HasValue && element.Value.TryGetProperty(propertyName, out JsonElement prop))
+        {
+            if (prop.ValueKind == JsonValueKind.Array)
+            {
+                List<string> list = [];
+                foreach (JsonElement item in prop.EnumerateArray())
+                {
+                    string? str = item.GetString();
+                    if (!string.IsNullOrWhiteSpace(str))
+                    {
+                        list.Add(str);
+                    }
+                }
+
+                if (list.Count > 0)
+                {
+                    return list;
+                }
+            }
+            else if (prop.ValueKind == JsonValueKind.String)
+            {
+                string? str = prop.GetString();
+                if (!string.IsNullOrWhiteSpace(str))
+                {
+                    return [str];
+                }
+            }
+        }
+
+        throw new ArgumentException($"Missing required array argument '{propertyName}'.");
+    }
+
+    private static List<string>? GetOptionalStringList(JsonElement? element, string propertyName)
+    {
+        if (element.HasValue && element.Value.TryGetProperty(propertyName, out JsonElement prop) && prop.ValueKind == JsonValueKind.Array)
+        {
+            List<string> list = [];
+            foreach (JsonElement item in prop.EnumerateArray())
+            {
+                string? str = item.GetString();
+                if (!string.IsNullOrWhiteSpace(str))
+                {
+                    list.Add(str);
+                }
+            }
+
+            return list;
+        }
+
+        return null;
     }
 
     private static int GetOptionalInt(JsonElement? element, string propertyName, int defaultValue)

@@ -35,4 +35,9 @@ public interface IMailboxService
         string folderId,
         string itemId,
         CancellationToken cancellationToken = default);
+
+    Task<OperationResult> SendEmail(
+        string mailboxId,
+        SendEmailRequest request,
+        CancellationToken cancellationToken = default);
 }

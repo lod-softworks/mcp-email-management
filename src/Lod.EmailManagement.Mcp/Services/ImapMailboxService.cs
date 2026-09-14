@@ -236,6 +236,21 @@ public class ImapMailboxService(
         return new OperationResult(false, $"Failed to move item {itemId} to Trash ('{trashFolder.FullName}').");
     }
 
+    public Task<OperationResult> SendEmail(
+        string mailboxId,
+        SendEmailRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        string recipients = string.Join(", ", request.To);
+        logger.LogWarning(
+            "Attempted to send email via mailbox '{MailboxId}' to '{Recipients}' with subject '{Subject}'. Sending is not implemented.",
+            mailboxId,
+            recipients,
+            request.Subject);
+
+        throw new NotImplementedException("Sending email is not implemented in this version of Email Management MCP.");
+    }
+
     private IMailFolder? ResolveTrashFolder(IImapClient client, string mailboxId)
     {
         List<MailboxAccountOptions> accounts = configuration.GetSection(MailboxAccountOptions.SectionName).Get<List<MailboxAccountOptions>>() ?? [];

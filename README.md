@@ -31,6 +31,7 @@ When connected via an MCP client, the following tools are exposed:
 | `get_item` | `mailbox_id`, `folder_id`, `item_id`, `include_body_html?` | Retrieves full email content, headers, body, and attachment metadata. |
 | `move_item` | `mailbox_id`, `source_folder_id`, `target_folder_id`, `item_id` | Moves an email message to a different target folder. |
 | `trash_item` | `mailbox_id`, `folder_id`, `item_id` | Moves an email message to the mailbox's designated Trash folder. |
+| `send_email` | `mailbox_id`, `to`, `subject`, `body_text`, `body_html?`, `cc?`, `bcc?` | Sends an email (currently logs attempt and throws `NotImplementedException`). |
 
 ---
 
@@ -44,6 +45,7 @@ The service also exposes standard REST endpoints:
 - `GET /api/mailboxes/{mailboxId}/folders/{folderId}/items/{itemId}` — Get email details
 - `POST /api/mailboxes/{mailboxId}/folders/{sourceFolderId}/items/{itemId}/move` — Move an item
 - `POST /api/mailboxes/{mailboxId}/folders/{folderId}/items/{itemId}/trash` — Trash an item (or `DELETE`)
+- `POST /api/mailboxes/{mailboxId}/send` — Send an email (logs attempt and returns 501 / throws `NotImplementedException`)
 
 ---
 

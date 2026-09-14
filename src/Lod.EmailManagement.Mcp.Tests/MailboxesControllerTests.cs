@@ -111,4 +111,15 @@ public class MailboxesControllerTests
         OperationResult? op = okResult!.Value as OperationResult;
         op!.Success.Should().BeTrue();
     }
+
+    [Fact]
+    public async Task SendEmailThrowsNotImplementedException()
+    {
+        _mailboxServiceMock.Setup(s => s.SendEmail("main", It.IsAny<SendEmailRequest>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new NotImplementedException("Sending email is not implemented."));
+
+        Func<Task> act = async () => await _controller.SendEmail("main", new SendEmailRequest(["dest@test.com"], "Test", "Content"), CancellationToken.None);
+
+        await act.Should().ThrowAsync<NotImplementedException>();
+    }
 }

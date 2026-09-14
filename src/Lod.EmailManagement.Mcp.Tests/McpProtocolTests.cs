@@ -65,7 +65,7 @@ public class McpProtocolTests
         response.Should().NotBeNull();
         McpToolsListResult? result = response!.Result as McpToolsListResult;
         result.Should().NotBeNull();
-        result!.Tools.Should().HaveCount(6);
+        result!.Tools.Should().HaveCount(7);
 
         List<string> toolNames = result.Tools.Select(t => t.Name).ToList();
         toolNames.Should().Contain([
@@ -74,7 +74,8 @@ public class McpProtocolTests
             "list_folder_items",
             "get_item",
             "move_item",
-            "trash_item"
+            "trash_item",
+            "send_email"
         ]);
     }
 
@@ -184,6 +185,20 @@ public class McpProtocolTests
         McpToolCallResult? result = response!.Result as McpToolCallResult;
         result.Should().NotBeNull();
         result!.IsError.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task CallSendEmailThrowsNotImplementedException()
+    {
+        _mailboxServiceMock.Setup(s => s.SendEmail("work", It.IsAny<SendEmailRequest>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new NotImplementedException("Sending email is not implemented."));
+
+        string jsonParams = """{"name": "send_email", "arguments": {"mailbox_id": "work", "to": ["target@example.com"], "subject": "Hello", "body_text": "World"}}""";
+        McpRequest request = new("2.0", JsonDocument.Parse("10").RootElement, "tools/call", JsonDocument.Parse(jsonParams).RootElement);
+
+        Func<Task> act = async () => await _handler.ProcessRequest(request);
+
+        await act.Should().ThrowAsync<NotImplementedException>();
     }
 
     [Fact]

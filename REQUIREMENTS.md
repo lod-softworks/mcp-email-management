@@ -139,6 +139,16 @@ flowchart TD
     - If already in Trash, returns a friendly error or no-op (cannot trash an item already in trash).
     - Moves the item to the Trash folder internally.
 
+### 5. Send Operations (Stubbed)
+
+- **Send Email**:
+  - MCP Tool: `send_email(mailbox_id, to, subject, body_text, body_html?, cc?, bcc?)`
+  - REST: `POST /api/mailboxes/{mailboxId}/send`
+  - Body: `{ "to": ["..."], "subject": "...", "bodyText": "...", "bodyHtml": "...", "cc": [...], "bcc": [...] }`
+  - Behavior:
+    - Logs a warning with the mailbox ID, recipient list, and subject line.
+    - Intentionally throws `System.NotImplementedException` (returning HTTP 501 Not Implemented or MCP error) until full SMTP delivery is enabled.
+
 ---
 
 ## Secrets & Configuration (Azure Key Vault)

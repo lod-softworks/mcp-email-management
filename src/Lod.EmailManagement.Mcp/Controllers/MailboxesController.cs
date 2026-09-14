@@ -175,4 +175,16 @@ public class MailboxesController(IMailboxService mailboxService) : ControllerBas
         // Internal policy: Deletes always move to trash
         return TrashItem(mailboxId, folderId, itemId, cancellationToken);
     }
+
+    [HttpPost("{mailboxId}/send")]
+    [ProducesResponseType(typeof(OperationResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status501NotImplemented)]
+    public async Task<ActionResult<OperationResult>> SendEmail(
+        string mailboxId,
+        [FromBody] SendEmailRequest request,
+        CancellationToken cancellationToken)
+    {
+        await mailboxService.SendEmail(mailboxId, request, cancellationToken);
+        return Ok(new OperationResult(true, "Email sent successfully."));
+    }
 }
