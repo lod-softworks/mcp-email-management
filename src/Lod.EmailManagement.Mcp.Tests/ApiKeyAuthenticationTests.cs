@@ -19,7 +19,7 @@ public class ApiKeyAuthenticationTests
 {
     private readonly Mock<ISecretService> _secretServiceMock = new();
     private readonly IMemoryCache _memoryCache = new MemoryCache(new MemoryCacheOptions());
-    private readonly IOptions<ApiKeyOptions> _options = Microsoft.Extensions.Options.Options.Create(new ApiKeyOptions
+    private readonly IOptions<ClientApiKeyOptions> _options = Microsoft.Extensions.Options.Options.Create(new ClientApiKeyOptions
     {
         Keys = ["config-key-123"],
         CacheDurationMinutes = 5

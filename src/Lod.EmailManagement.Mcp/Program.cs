@@ -3,12 +3,13 @@ using Lod.EmailManagement.Mcp.Configuration;
 using Lod.EmailManagement.Mcp.Mcp;
 using Lod.EmailManagement.Mcp.Services;
 using Microsoft.AspNetCore.Authentication;
+using Scalar.AspNetCore;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
 // Configuration options
 builder.Services.Configure<KeyVaultOptions>(builder.Configuration.GetSection(KeyVaultOptions.SectionName));
-builder.Services.Configure<ApiKeyOptions>(builder.Configuration.GetSection(ApiKeyOptions.SectionName));
+builder.Services.Configure<ClientApiKeyOptions>(builder.Configuration.GetSection(ClientApiKeyOptions.SectionName));
 
 // Caching
 builder.Services.AddMemoryCache();
@@ -37,6 +38,7 @@ WebApplication app = builder.Build();
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
+    app.MapScalarApiReference();
 }
 
 app.UseHttpsRedirection();

@@ -11,7 +11,7 @@ namespace Lod.EmailManagement.Mcp.Authentication;
 public class ApiKeyValidator(
     ISecretService secretService,
     IConfiguration configuration,
-    IOptions<ApiKeyOptions> options,
+    IOptions<ClientApiKeyOptions> options,
     IMemoryCache memoryCache,
     ILogger<ApiKeyValidator> logger) : IApiKeyValidator
 {

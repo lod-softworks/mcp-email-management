@@ -1,6 +1,6 @@
 namespace Lod.EmailManagement.Mcp.Configuration;
 
-public record class ApiKeyOptions
+public record class ClientApiKeyOptions
 {
     public const string SectionName = "Authentication:ApiKey";
 

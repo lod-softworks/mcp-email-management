@@ -145,7 +145,7 @@ export AZURE_KEYVAULT_URI="https://<your-vault-name>.vault.azure.net/"
 dotnet run --project src/Lod.EmailManagement.Mcp
 ```
 
-Navigate to `http://localhost:5000/swagger` to inspect and test the REST endpoints.
+Navigate to `http://localhost:5000/scalar/v1` to inspect and test the REST endpoints via the interactive Scalar API reference (OpenAPI specification available at `/openapi/v1.json`).
 
 ---
 
