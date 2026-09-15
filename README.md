@@ -15,7 +15,7 @@ An ASP.NET Core service providing a Model Context Protocol (MCP) server for auto
   - Move messages between folders.
   - Safely trash or archive messages (automatically resolves designated Trash and Archive folders and moves them internally).
   - Update message status by marking emails as read/unread and flagged/unflagged.
-- **Azure Key Vault Secrets**: Zero hardcoded credentials; IMAP/SMTP hosts, ports, usernames, and passwords/tokens are retrieved dynamically from Azure Key Vault using `DefaultAzureCredential`.
+- **Azure Key Vault Secrets**: Zero hardcoded credentials; sensitive values (API keys, mailbox passwords, feature switches) are loaded dynamically from Azure Key Vault using `DefaultAzureCredential`.
 - **Lod Softworks Architecture**: Built on modern .NET 10 following clean architecture, primary constructors, C# record types, and file-scoped namespaces.
 
 ---
@@ -96,10 +96,14 @@ Non-sensitive configuration (Key Vault endpoint, logging, feature flags, and mai
 }
 ```
 
-The Key Vault URI can also be configured via the `AZURE_KEYVAULT_URI` environment variable:
+The Key Vault URI can be specified in `appsettings.json` under `KeyVault:VaultUri` (or `AzureKeyVault:VaultUri`), or via environment variables:
 ```bash
-export AZURE_KEYVAULT_URI="https://<your-key-vault-name>.vault.azure.net/"
+export KeyVault__VaultUri="https://<your-key-vault-name>.vault.azure.net/"
+# or
+export AzureKeyVault__VaultUri="https://<your-key-vault-name>.vault.azure.net/"
 ```
+
+The service automatically discovers and wires up Azure Key Vault when a valid URI is configured. When running locally without Azure Key Vault, leaving `VaultUri` blank or unset safely skips Key Vault initialization and falls back to User Secrets or local settings.
 
 ### Secrets in Azure Key Vault
 
@@ -216,8 +220,8 @@ Or using custom headers if supported by the MCP client:
 git clone https://github.com/lod-softworks/mcp-email-management.git
 cd mcp-email-management
 
-# Set your Azure Key Vault URI
-export AZURE_KEYVAULT_URI="https://<your-vault-name>.vault.azure.net/"
+# Set your Azure Key Vault URI (optional in local development)
+export KeyVault__VaultUri="https://<your-vault-name>.vault.azure.net/"
 
 # Run the API (defaults to http://localhost:5077 and https://localhost:7021)
 dotnet run --project src/Lod.EmailManagement.Mcp
