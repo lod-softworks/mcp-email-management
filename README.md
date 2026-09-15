@@ -195,8 +195,8 @@ Or using custom headers if supported by the MCP client:
 
 ```bash
 # Clone the repository
-git clone https://github.com/linkofdarkness/email-management-mcp.git
-cd email-management-mcp
+git clone https://github.com/lod-softworks/mcp-email-management.git
+cd mcp-email-management
 
 # Set your Azure Key Vault URI
 export AZURE_KEYVAULT_URI="https://<your-vault-name>.vault.azure.net/"
