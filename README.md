@@ -6,14 +6,17 @@ An ASP.NET Core service providing a Model Context Protocol (MCP) server for auto
 
 - **MCP Server**: Powered by the official [`ModelContextProtocol.AspNetCore`](https://www.nuget.org/packages/ModelContextProtocol.AspNetCore) SDK for Streamable HTTP / SSE transport.
 - **IMAP / SMTP Support**: Standardized communication with email providers (Office 365, Gmail, custom email hosts) powered by [MailKit](https://github.com/jstedfast/MailKit).
-- **Mailbox & Folder Navigation**: List configured mailboxes, discover folder hierarchies, and inspect unread/total message counts.
+- **Mailbox & Folder Management**:
+  - List configured mailboxes and discover full folder hierarchies with unread/total message counts.
+  - Create new folders and subfolders within mailbox namespaces.
 - **Message Inspection & Organization**:
   - Fetch message summaries with pagination and unread filters.
   - Retrieve full email details including plain text, HTML bodies, headers, and attachment metadata.
   - Move messages between folders.
   - Safely trash or archive messages (automatically resolves designated Trash and Archive folders and moves them internally).
+  - Update message status by marking emails as read/unread and flagged/unflagged.
 - **Azure Key Vault Secrets**: Zero hardcoded credentials; IMAP/SMTP hosts, ports, usernames, and passwords/tokens are retrieved dynamically from Azure Key Vault using `DefaultAzureCredential`.
-- **Lod Softworks Architecture**: Built on modern .NET LTS following clean architecture, primary constructors, C# record types, and file-scoped namespaces.
+- **Lod Softworks Architecture**: Built on modern .NET 10 following clean architecture, primary constructors, C# record types, and file-scoped namespaces.
 
 ---
 
@@ -25,11 +28,16 @@ When connected via an MCP client, the following tools are exposed:
 |-----------|------------|-------------|
 | `list_mailboxes` | _None_ | Lists all configured mailboxes accessible by the service. |
 | `list_folders` | `mailbox_id` | Lists all folders and child folders for a given mailbox. |
+| `create_folder` | `mailbox_id`, `folder_name`, `parent_folder_id?` | Creates a new folder or directory in the specified mailbox. |
 | `list_folder_items` | `mailbox_id`, `folder_id`, `limit?`, `offset?`, `unread_only?` | Lists email summaries in a folder with pagination. |
 | `get_item` | `mailbox_id`, `folder_id`, `item_id`, `include_body_html?` | Retrieves full email content, headers, body, and attachment metadata. |
 | `move_item` | `mailbox_id`, `source_folder_id`, `target_folder_id`, `item_id` | Moves an email message to a different target folder. |
 | `trash_item` | `mailbox_id`, `folder_id`, `item_id` | Moves an email message to the mailbox's designated Trash folder. |
 | `archive_item` | `mailbox_id`, `folder_id`, `item_id` | Moves an email message to the mailbox's designated Archive folder. |
+| `mark_item_read` | `mailbox_id`, `folder_id`, `item_id` | Marks an email message as read. |
+| `mark_item_unread` | `mailbox_id`, `folder_id`, `item_id` | Marks an email message as unread. |
+| `mark_item_flagged` | `mailbox_id`, `folder_id`, `item_id` | Marks an email message as flagged (starred/important). |
+| `mark_item_unflagged` | `mailbox_id`, `folder_id`, `item_id` | Removes the flagged (starred/important) flag from an email message. |
 | `send_email` | `mailbox_id`, `to`, `subject`, `body_text`, `body_html?`, `cc?`, `bcc?` | Sends an email (currently logs attempt and throws `NotImplementedException`). |
 
 ---
@@ -100,7 +108,7 @@ To connect an MCP client (such as Cursor or Claude Desktop) using Streamable HTT
 {
   "mcpServers": {
     "email-management": {
-      "url": "http://localhost:5000/mcp?apiKey=your-api-key"
+      "url": "http://localhost:5077/mcp?apiKey=your-api-key"
     }
   }
 }
@@ -112,7 +120,7 @@ Or using custom headers if supported by the MCP client:
 {
   "mcpServers": {
     "email-management": {
-      "url": "http://localhost:5000/mcp",
+      "url": "http://localhost:5077/mcp",
       "headers": {
         "X-API-Key": "your-api-key"
       }
@@ -127,7 +135,7 @@ Or using custom headers if supported by the MCP client:
 
 ### Prerequisites
 
-- [.NET 8+ SDK](https://dotnet.microsoft.com/download)
+- [.NET 10 SDK](https://dotnet.microsoft.com/download)
 - Azure Key Vault instance (or Azure CLI logged in with permissions to a vault)
 
 ### Running Locally
@@ -140,8 +148,14 @@ cd email-management-mcp
 # Set your Azure Key Vault URI
 export AZURE_KEYVAULT_URI="https://<your-vault-name>.vault.azure.net/"
 
-# Run the API
+# Run the API (defaults to http://localhost:5077 and https://localhost:7021)
 dotnet run --project src/Lod.EmailManagement.Mcp
+```
+
+### Running Tests
+
+```bash
+dotnet test
 ```
 
 ---
