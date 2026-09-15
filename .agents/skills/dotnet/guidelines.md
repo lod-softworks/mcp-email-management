@@ -8,7 +8,7 @@ Follow [code-guidelines.md](../../rules/code-guidelines.md) as the base for lang
 
 ## Repository Structure
 
-- All source files including dotnet solution files should be in a `src` directory at the repository root.
+- Dotnet solution files (`.slnx` / `.sln`) should be maintained at the repository root. All project source and test directories belong under `src/`.
 - README files should be maintained at the repository root and not within project directories.
 
 ## Framework and Language Versions
