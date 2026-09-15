@@ -50,4 +50,49 @@ public class MailboxAccountOptionsTests
         options.SmtpHost.Should().BeEmpty();
         options.SmtpUserName.Should().BeNull();
     }
+
+    [Fact]
+    public void MailboxAccountOptionsBindsImapConfigurationCorrectly()
+    {
+        Dictionary<string, string?> inMemorySettings = new()
+        {
+            ["Mailboxes:0:Id"] = "imap-test",
+            ["Mailboxes:0:DisplayName"] = "IMAP Account",
+            ["Mailboxes:0:EmailAddress"] = "imap@example.com",
+            ["Mailboxes:0:ImapHost"] = "mail.example.org",
+            ["Mailboxes:0:ImapPort"] = "143",
+            ["Mailboxes:0:ImapUseSsl"] = "false",
+            ["Mailboxes:0:ImapUserName"] = "imap-user",
+            ["Mailboxes:0:IsActive"] = "true"
+        };
+
+        IConfiguration configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(inMemorySettings)
+            .Build();
+
+        List<MailboxAccountOptions> mailboxes = configuration.GetSection(MailboxAccountOptions.SectionName).Get<List<MailboxAccountOptions>>() ?? [];
+
+        mailboxes.Should().HaveCount(1);
+        MailboxAccountOptions mailbox = mailboxes[0];
+        mailbox.Id.Should().Be("imap-test");
+        mailbox.DisplayName.Should().Be("IMAP Account");
+        mailbox.EmailAddress.Should().Be("imap@example.com");
+        mailbox.ImapHost.Should().Be("mail.example.org");
+        mailbox.ImapPort.Should().Be(143);
+        mailbox.ImapUseSsl.Should().BeFalse();
+        mailbox.ImapUserName.Should().Be("imap-user");
+        mailbox.IsActive.Should().BeTrue();
+    }
+
+    [Fact]
+    public void MailboxAccountOptionsDefaultsImapPortAndSsl()
+    {
+        MailboxAccountOptions options = new();
+
+        options.ImapPort.Should().Be(993);
+        options.ImapUseSsl.Should().BeTrue();
+        options.ImapHost.Should().BeEmpty();
+        options.ImapUserName.Should().BeEmpty();
+        options.IsActive.Should().BeTrue();
+    }
 }

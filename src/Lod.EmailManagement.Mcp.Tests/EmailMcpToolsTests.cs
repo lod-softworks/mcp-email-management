@@ -110,4 +110,52 @@ public class EmailMcpToolsTests
 
         await act.Should().ThrowAsync<NotImplementedException>();
     }
+
+    [Fact]
+    public async Task ListFolderItemsUsesDefaultParameters()
+    {
+        List<EmailSummary> expected = [];
+        _mailboxServiceMock.Setup(s => s.ListFolderItems("work", "INBOX", 50, 0, false, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(expected);
+
+        IReadOnlyList<EmailSummary> result = await _tools.ListFolderItems("work", "INBOX");
+
+        result.Should().BeEquivalentTo(expected);
+        _mailboxServiceMock.Verify(s => s.ListFolderItems("work", "INBOX", 50, 0, false, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetItemReturnsNullWhenNotFound()
+    {
+        _mailboxServiceMock.Setup(s => s.GetItem("work", "INBOX", "missing-id", true, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((EmailDetail?)null);
+
+        EmailDetail? result = await _tools.GetItem("work", "INBOX", "missing-id");
+
+        result.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task SendEmailPassesAllOptionalParameters()
+    {
+        SendEmailRequest? capturedRequest = null;
+        _mailboxServiceMock.Setup(s => s.SendEmail("work", It.IsAny<SendEmailRequest>(), It.IsAny<CancellationToken>()))
+            .Callback<string, SendEmailRequest, CancellationToken>((_, req, _) => capturedRequest = req)
+            .ReturnsAsync(new OperationResult(true, "Sent"));
+
+        List<string> to = ["to@example.com"];
+        List<string> cc = ["cc@example.com"];
+        List<string> bcc = ["bcc@example.com"];
+
+        OperationResult result = await _tools.SendEmail("work", to, "Subject", "BodyText", "<b>BodyHtml</b>", cc, bcc);
+
+        result.Success.Should().BeTrue();
+        capturedRequest.Should().NotBeNull();
+        capturedRequest!.To.Should().BeEquivalentTo(to);
+        capturedRequest.Subject.Should().Be("Subject");
+        capturedRequest.BodyText.Should().Be("BodyText");
+        capturedRequest.BodyHtml.Should().Be("<b>BodyHtml</b>");
+        capturedRequest.Cc.Should().BeEquivalentTo(cc);
+        capturedRequest.Bcc.Should().BeEquivalentTo(bcc);
+    }
 }

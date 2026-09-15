@@ -38,4 +38,43 @@ public class ImapMailboxServiceTests
                 It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
             Times.Once);
     }
+
+    [Fact]
+    public async Task ListMailboxesReturnsConfiguredMailboxes()
+    {
+        Dictionary<string, string?> inMemorySettings = new()
+        {
+            ["Mailboxes:0:Id"] = "work",
+            ["Mailboxes:0:DisplayName"] = "Work Email",
+            ["Mailboxes:0:EmailAddress"] = "work@example.com",
+            ["Mailboxes:0:IsActive"] = "true",
+            ["Mailboxes:1:Id"] = "personal",
+            ["Mailboxes:1:DisplayName"] = "Personal Email",
+            ["Mailboxes:1:EmailAddress"] = "personal@example.com",
+            ["Mailboxes:1:IsActive"] = "false"
+        };
+
+        IConfiguration config = new ConfigurationBuilder()
+            .AddInMemoryCollection(inMemorySettings)
+            .Build();
+
+        ImapMailboxService service = new(_clientFactoryMock.Object, config, _loggerMock.Object);
+
+        IReadOnlyList<MailboxSummary> mailboxes = await service.ListMailboxes();
+
+        mailboxes.Should().HaveCount(2);
+        mailboxes[0].Should().BeEquivalentTo(new MailboxSummary("work", "Work Email", "work@example.com", true));
+        mailboxes[1].Should().BeEquivalentTo(new MailboxSummary("personal", "Personal Email", "personal@example.com", false));
+    }
+
+    [Fact]
+    public async Task ListMailboxesReturnsEmptyListWhenNoMailboxesConfigured()
+    {
+        IConfiguration config = new ConfigurationBuilder().Build();
+        ImapMailboxService service = new(_clientFactoryMock.Object, config, _loggerMock.Object);
+
+        IReadOnlyList<MailboxSummary> mailboxes = await service.ListMailboxes();
+
+        mailboxes.Should().BeEmpty();
+    }
 }

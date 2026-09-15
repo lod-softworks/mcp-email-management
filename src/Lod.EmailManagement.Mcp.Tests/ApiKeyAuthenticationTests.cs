@@ -154,6 +154,123 @@ public class ApiKeyAuthenticationTests
         result.None.Should().BeTrue();
     }
 
+    [Fact]
+    public async Task HandlerAuthenticatesWithApiKeyAuthorizationHeader()
+    {
+        Mock<IApiKeyValidator> validatorMock = new();
+        validatorMock.Setup(v => v.ValidateKey("apikey-token-789", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+
+        ApiKeyAuthenticationHandler handler = CreateHandler(validatorMock.Object);
+
+        DefaultHttpContext context = new();
+        context.Request.Headers.Authorization = "ApiKey apikey-token-789";
+
+        await handler.InitializeAsync(
+            new AuthenticationScheme("ApiKey", "ApiKey", typeof(ApiKeyAuthenticationHandler)),
+            context);
+
+        AuthenticateResult result = await handler.AuthenticateAsync();
+
+        result.Succeeded.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task HandlerAuthenticatesWithSnakeCaseQueryParameter()
+    {
+        Mock<IApiKeyValidator> validatorMock = new();
+        validatorMock.Setup(v => v.ValidateKey("snake-token-999", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+
+        ApiKeyAuthenticationHandler handler = CreateHandler(validatorMock.Object);
+
+        DefaultHttpContext context = new();
+        context.Request.QueryString = new QueryString("?api_key=snake-token-999");
+
+        await handler.InitializeAsync(
+            new AuthenticationScheme("ApiKey", "ApiKey", typeof(ApiKeyAuthenticationHandler)),
+            context);
+
+        AuthenticateResult result = await handler.AuthenticateAsync();
+
+        result.Succeeded.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task HandlerTrimsWhitespaceFromApiKey()
+    {
+        Mock<IApiKeyValidator> validatorMock = new();
+        validatorMock.Setup(v => v.ValidateKey("trimmed-key", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+
+        ApiKeyAuthenticationHandler handler = CreateHandler(validatorMock.Object);
+
+        DefaultHttpContext context = new();
+        context.Request.Headers["X-API-Key"] = "  trimmed-key  ";
+
+        await handler.InitializeAsync(
+            new AuthenticationScheme("ApiKey", "ApiKey", typeof(ApiKeyAuthenticationHandler)),
+            context);
+
+        AuthenticateResult result = await handler.AuthenticateAsync();
+
+        result.Succeeded.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task HandlerIgnoresUnrecognizedAuthorizationScheme()
+    {
+        Mock<IApiKeyValidator> validatorMock = new();
+        ApiKeyAuthenticationHandler handler = CreateHandler(validatorMock.Object);
+
+        DefaultHttpContext context = new();
+        context.Request.Headers.Authorization = "Basic dXNlcjpwYXNz";
+
+        await handler.InitializeAsync(
+            new AuthenticationScheme("ApiKey", "ApiKey", typeof(ApiKeyAuthenticationHandler)),
+            context);
+
+        AuthenticateResult result = await handler.AuthenticateAsync();
+
+        result.None.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task HandlerReturnsNoResultWhenQueryParamIsEmpty()
+    {
+        Mock<IApiKeyValidator> validatorMock = new();
+        ApiKeyAuthenticationHandler handler = CreateHandler(validatorMock.Object);
+
+        DefaultHttpContext context = new();
+        context.Request.QueryString = new QueryString("?apiKey=");
+
+        await handler.InitializeAsync(
+            new AuthenticationScheme("ApiKey", "ApiKey", typeof(ApiKeyAuthenticationHandler)),
+            context);
+
+        AuthenticateResult result = await handler.AuthenticateAsync();
+
+        result.None.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task HandlerReturnsNoResultWhenAuthorizationHeaderMissingToken()
+    {
+        Mock<IApiKeyValidator> validatorMock = new();
+        ApiKeyAuthenticationHandler handler = CreateHandler(validatorMock.Object);
+
+        DefaultHttpContext context = new();
+        context.Request.Headers.Authorization = "Bearer ";
+
+        await handler.InitializeAsync(
+            new AuthenticationScheme("ApiKey", "ApiKey", typeof(ApiKeyAuthenticationHandler)),
+            context);
+
+        AuthenticateResult result = await handler.AuthenticateAsync();
+
+        result.None.Should().BeTrue();
+    }
+
     private static ApiKeyAuthenticationHandler CreateHandler(IApiKeyValidator validator)
     {
         Mock<IOptionsMonitor<AuthenticationSchemeOptions>> optionsMock = new();

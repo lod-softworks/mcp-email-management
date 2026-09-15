@@ -91,4 +91,194 @@ public class McpEndpointIntegrationTests : IClassFixture<WebApplicationFactory<P
         content.Should().Contain("archive_item");
         content.Should().Contain("send_email");
     }
+
+    [Fact]
+    public async Task McpEndpointRejectsInvalidApiKey()
+    {
+        HttpClient client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-API-Key", "invalid-key-9999");
+
+        HttpResponseMessage response = await client.PostAsync("/mcp", new StringContent("{}", System.Text.Encoding.UTF8, "application/json"));
+
+        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
+
+    [Fact]
+    public async Task McpEndpointAllowsBearerTokenAuthentication()
+    {
+        HttpClient client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", "dev-api-key-12345");
+        client.DefaultRequestHeaders.Add("Accept", "application/json, text/event-stream");
+
+        string initJson = """
+        {
+            "jsonrpc": "2.0",
+            "id": 10,
+            "method": "initialize",
+            "params": {
+                "protocolVersion": "2024-11-05",
+                "capabilities": {},
+                "clientInfo": { "name": "test-client", "version": "1.0.0" }
+            }
+        }
+        """;
+
+        HttpResponseMessage response = await client.PostAsync("/mcp", new StringContent(initJson, System.Text.Encoding.UTF8, "application/json"));
+
+        response.IsSuccessStatusCode.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task McpEndpointAllowsQueryParameterAuthentication()
+    {
+        HttpClient client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("Accept", "application/json, text/event-stream");
+
+        string initJson = """
+        {
+            "jsonrpc": "2.0",
+            "id": 11,
+            "method": "initialize",
+            "params": {
+                "protocolVersion": "2024-11-05",
+                "capabilities": {},
+                "clientInfo": { "name": "test-client", "version": "1.0.0" }
+            }
+        }
+        """;
+
+        HttpResponseMessage response = await client.PostAsync("/mcp?apiKey=dev-api-key-12345", new StringContent(initJson, System.Text.Encoding.UTF8, "application/json"));
+
+        response.IsSuccessStatusCode.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task McpEndpointAllowsSnakeCaseQueryParameterAuthentication()
+    {
+        HttpClient client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("Accept", "application/json, text/event-stream");
+
+        string initJson = """
+        {
+            "jsonrpc": "2.0",
+            "id": 12,
+            "method": "initialize",
+            "params": {
+                "protocolVersion": "2024-11-05",
+                "capabilities": {},
+                "clientInfo": { "name": "test-client", "version": "1.0.0" }
+            }
+        }
+        """;
+
+        HttpResponseMessage response = await client.PostAsync("/mcp?api_key=dev-api-key-12345", new StringContent(initJson, System.Text.Encoding.UTF8, "application/json"));
+
+        response.IsSuccessStatusCode.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task McpEndpointHandlesToolsCallListMailboxes()
+    {
+        HttpClient client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-API-Key", "dev-api-key-12345");
+        client.DefaultRequestHeaders.Add("Accept", "application/json, text/event-stream");
+
+        string callJson = """
+        {
+            "jsonrpc": "2.0",
+            "id": 20,
+            "method": "tools/call",
+            "params": {
+                "name": "list_mailboxes",
+                "arguments": {}
+            }
+        }
+        """;
+
+        HttpResponseMessage response = await client.PostAsync("/mcp", new StringContent(callJson, System.Text.Encoding.UTF8, "application/json"));
+
+        response.IsSuccessStatusCode.Should().BeTrue();
+        string content = await response.Content.ReadAsStringAsync();
+        content.Should().Contain("emailAddress");
+        content.Should().Contain("isActive");
+        content.Should().Contain("20");
+    }
+
+    [Fact]
+    public async Task McpEndpointHandlesPingRequest()
+    {
+        HttpClient client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-API-Key", "dev-api-key-12345");
+        client.DefaultRequestHeaders.Add("Accept", "application/json, text/event-stream");
+
+        string pingJson = """
+        {
+            "jsonrpc": "2.0",
+            "id": 30,
+            "method": "ping",
+            "params": {}
+        }
+        """;
+
+        HttpResponseMessage response = await client.PostAsync("/mcp", new StringContent(pingJson, System.Text.Encoding.UTF8, "application/json"));
+
+        response.IsSuccessStatusCode.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task McpEndpointHandlesToolsCallForUnknownTool()
+    {
+        HttpClient client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-API-Key", "dev-api-key-12345");
+        client.DefaultRequestHeaders.Add("Accept", "application/json, text/event-stream");
+
+        string callJson = """
+        {
+            "jsonrpc": "2.0",
+            "id": 21,
+            "method": "tools/call",
+            "params": {
+                "name": "nonexistent_tool",
+                "arguments": {}
+            }
+        }
+        """;
+
+        HttpResponseMessage response = await client.PostAsync("/mcp", new StringContent(callJson, System.Text.Encoding.UTF8, "application/json"));
+
+        string content = await response.Content.ReadAsStringAsync();
+        content.Should().Contain("21");
+        content.Should().Contain("error");
+    }
+
+    [Fact]
+    public async Task McpEndpointHandlesToolsCallSendEmailThrowsOrReturnsError()
+    {
+        HttpClient client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-API-Key", "dev-api-key-12345");
+        client.DefaultRequestHeaders.Add("Accept", "application/json, text/event-stream");
+
+        string callJson = """
+        {
+            "jsonrpc": "2.0",
+            "id": 22,
+            "method": "tools/call",
+            "params": {
+                "name": "send_email",
+                "arguments": {
+                    "mailboxId": "primary",
+                    "to": ["user@example.com"],
+                    "subject": "Test",
+                    "bodyText": "Body"
+                }
+            }
+        }
+        """;
+
+        HttpResponseMessage response = await client.PostAsync("/mcp", new StringContent(callJson, System.Text.Encoding.UTF8, "application/json"));
+
+        string content = await response.Content.ReadAsStringAsync();
+        content.Should().Contain("\"isError\":true");
+        content.Should().Contain("send_email");
+    }
 }
