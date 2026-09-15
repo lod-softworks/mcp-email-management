@@ -28,7 +28,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Lod.EmailManagement.Mcp\Lod.EmailManagement.Mcp.csproj" />
+    <ProjectReference Include="..\..\src\Lod.EmailManagement.Mcp\Lod.EmailManagement.Mcp.csproj" />
   </ItemGroup>
 
 </Project>
