@@ -166,26 +166,26 @@ Sensitive settings stored in Key Vault:
 
 | Secret Name Pattern | Purpose |
 |---------------------|---------|
-| `Passwords--{sanitized-email}` or `{sanitized-email}` | Dedicated email password mapped by email address (disallowed characters `@` and `.` converted to `-`) |
+| `Passwords--{id}` | Dedicated email password mapped to the mailbox `Id` |
 | `ApiKeys` | JSON array (`["key1","key2"]`) or comma-separated authorized client API keys |
 | `ApiKeys--{index}` | Individual indexed authorized client API key |
 | `EmailSending--Enabled` | Global safety flag (`true`/`false`) controlling whether outgoing email delivery is enabled |
 | `Mailboxes--{id}--ImapHost` | IMAP server hostname (e.g. `imap.domain.com`) |
 | `Mailboxes--{id}--ImapPort` | IMAP port (e.g. `993`) |
 | `Mailboxes--{id}--ImapSsl` | SSL/TLS mode (`Auto`, `SslOnConnect`, `StartTls`) |
+| `Mailboxes--{id}--ImapUserName` | Optional login username for IMAP (defaults to `EmailAddress`) |
 | `Mailboxes--{id}--SmtpHost` | SMTP server hostname (e.g. `smtp.domain.com`) |
 | `Mailboxes--{id}--SmtpPort` | SMTP port (e.g. `587`) |
 | `Mailboxes--{id}--SmtpSsl` | SMTP SSL/TLS mode (`true`, `Auto`, `SslOnConnect`, `StartTls`) |
-| `Mailboxes--{id}--Username` | Email address / login account |
-| `Mailboxes--{id}--Password` | Fallback app password, access secret, or basic auth password |
+| `Mailboxes--{id}--SmtpUserName` | Optional login username for SMTP (defaults to `ImapUserName` or `EmailAddress`) |
 
-In local development and non-vault environments, passwords can be declared in a dedicated `"Passwords"` section:
+In local development and non-vault environments, passwords can be declared in a dedicated `"Passwords"` section mapped by mailbox ID:
 
 ```json
 {
   "Passwords": {
-    "email1@firstdomain.net": "asdfasdf",
-    "second-email@diffdomain.com": "woah"
+    "personal": "asdfasdf",
+    "work": "woah"
   }
 }
 ```

@@ -67,34 +67,40 @@ Non-sensitive configuration (Key Vault endpoint, logging, feature flags, and mai
   },
   "Mailboxes": [
     {
-      "Id": "primary",
-      "DisplayName": "Primary Work Email",
-      "EmailAddress": "agent@example.com",
+      "Id": "personal",
+      "DisplayName": "Personal Email",
+      "EmailAddress": "personal@example.com",
       "ImapHost": "imap.example.com",
       "ImapPort": 993,
       "ImapUseSsl": true,
       "SmtpHost": "smtp.example.com",
       "SmtpPort": 587,
       "SmtpUseSsl": true,
-      "Username": "agent@example.com",
       "IsActive": true
     },
     {
-      "Id": "support",
-      "DisplayName": "Support Inbox",
-      "EmailAddress": "support@example.com",
+      "Id": "work",
+      "DisplayName": "Work Email",
+      "EmailAddress": "work@example.com",
       "ImapHost": "imap.example.com",
       "ImapPort": 993,
       "ImapUseSsl": true,
+      "ImapUserName": "work-custom-imap-user",
       "SmtpHost": "smtp.example.com",
       "SmtpPort": 587,
       "SmtpUseSsl": true,
-      "Username": "support@example.com",
+      "SmtpUserName": "work-custom-smtp-user",
       "IsActive": true
     }
   ]
 }
 ```
+
+> [!NOTE]
+> **Optional IMAP & SMTP Usernames**:
+> - `ImapUserName` *(optional)*: The login username for IMAP. When omitted or left blank, the service automatically uses `EmailAddress`.
+> - `SmtpUserName` *(optional)*: The login username for SMTP. When omitted or left blank, the service automatically falls back to `ImapUserName` (if provided), or `EmailAddress`.
+> In most email configurations (e.g. Microsoft 365, Google Workspace, standard email hosts), credentials use the email address directly, so `ImapUserName` and `SmtpUserName` only need to be configured when the host requires a distinct username.
 
 The Key Vault URI can be specified in `appsettings.json` under `KeyVault:VaultUri` (or `AzureKeyVault:VaultUri`), or via environment variables:
 ```bash
@@ -115,8 +121,7 @@ All sensitive values—specifically **client API keys** and **mailbox passwords*
 |-------------|-------------------------------|---------------------|---------------|-------------|
 | **Client API Key** | `Authentication--ApiKeys--<index>` | `Authentication--ApiKeys--0` | `lod-agent-key-abcdef123456` | Authorized API key for MCP clients connecting to `/mcp`. |
 | **Email Sending Switch** | `EmailSending--Enabled` | `EmailSending--Enabled` | `true` | Global safety switch controlling whether MCP clients can send outgoing emails via SMTP. |
-| **Mailbox Password** | `Passwords--<mailbox-id>` | `Passwords--primary` | `my-secure-email-password` | Password matching the mailbox's `Id` in `appsettings.json`. |
-| **Mailbox Password (Email Fallback)** | `Passwords--<sanitized-email>` | `Passwords--agent-example-com` | `my-secure-email-password` | Dedicated email password (characters like `@` and `.` converted to `-`). |
+| **Mailbox Password** | `Passwords--<mailbox-id>` | `Passwords--personal` | `my-secure-email-password` | Password matching the mailbox's `Id` in `appsettings.json`. |
 
 ### Email Sending Configuration
 
@@ -144,12 +149,12 @@ az keyvault secret set --vault-name "<your-key-vault-name>" \
 
 # Store mailbox passwords mapped to mailbox Ids defined in appsettings.json
 az keyvault secret set --vault-name "<your-key-vault-name>" \
-  --name "Passwords--primary" \
-  --value "app-specific-password-for-primary"
+  --name "Passwords--personal" \
+  --value "app-specific-password-for-personal"
 
 az keyvault secret set --vault-name "<your-key-vault-name>" \
-  --name "Passwords--support" \
-  --value "app-specific-password-for-support"
+  --name "Passwords--work" \
+  --value "app-specific-password-for-work"
 ```
 
 Authentication to Azure Key Vault is handled via `Azure.Identity.DefaultAzureCredential`, supporting Azure CLI (`az login`), environment credentials, Visual Studio credentials, and Azure Managed Identity in production.
@@ -160,7 +165,8 @@ For local development without an active Azure Key Vault connection, you can stor
 
 ```bash
 dotnet user-secrets set "Authentication:ApiKeys:0" "dev-api-key-12345" --project src/Lod.EmailManagement.Mcp
-dotnet user-secrets set "Passwords:primary" "local-dev-password" --project src/Lod.EmailManagement.Mcp
+dotnet user-secrets set "Passwords:personal" "local-dev-personal-password" --project src/Lod.EmailManagement.Mcp
+dotnet user-secrets set "Passwords:work" "local-dev-work-password" --project src/Lod.EmailManagement.Mcp
 ```
 
 ---

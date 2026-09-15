@@ -24,8 +24,7 @@ public class SmtpClientFactory(
             ? account.SmtpUserName
             : (!string.IsNullOrWhiteSpace(account.ImapUserName) ? account.ImapUserName : account.EmailAddress);
 
-        string? password = configuration.GetSection("Passwords")[account.Id]
-            ?? configuration.GetSection("Passwords")[account.EmailAddress];
+        string? password = configuration.GetSection("Passwords")[account.Id];
 
         SecureSocketOptions sslOptions = account.SmtpUseSsl
             ? (account.SmtpPort == 465 ? SecureSocketOptions.SslOnConnect : SecureSocketOptions.Auto)
