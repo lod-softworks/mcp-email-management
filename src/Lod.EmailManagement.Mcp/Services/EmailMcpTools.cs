@@ -89,4 +89,54 @@ public class EmailMcpTools(IMailboxService mailboxService)
         SendEmailRequest request = new(to, subject, bodyText, bodyHtml, cc, bcc);
         return await mailboxService.SendEmail(mailboxId, request, cancellationToken);
     }
+
+    [McpServerTool, Description("Creates a new folder or directory in the specified mailbox.")]
+    public async Task<OperationResult> CreateFolder(
+        [Description("The mailbox ID.")] string mailboxId,
+        [Description("The name of the new folder to create.")] string folderName,
+        [Description("Optional parent folder path or ID. If not specified, the folder is created at the top level.")] string? parentFolderId = null,
+        CancellationToken cancellationToken = default)
+    {
+        return await mailboxService.CreateFolder(mailboxId, folderName, parentFolderId, cancellationToken);
+    }
+
+    [McpServerTool, Description("Marks an email message as read.")]
+    public async Task<OperationResult> MarkItemRead(
+        [Description("The mailbox ID.")] string mailboxId,
+        [Description("Current folder path of the item.")] string folderId,
+        [Description("The email message unique ID.")] string itemId,
+        CancellationToken cancellationToken = default)
+    {
+        return await mailboxService.SetItemReadStatus(mailboxId, folderId, itemId, isRead: true, cancellationToken);
+    }
+
+    [McpServerTool, Description("Marks an email message as unread.")]
+    public async Task<OperationResult> MarkItemUnread(
+        [Description("The mailbox ID.")] string mailboxId,
+        [Description("Current folder path of the item.")] string folderId,
+        [Description("The email message unique ID.")] string itemId,
+        CancellationToken cancellationToken = default)
+    {
+        return await mailboxService.SetItemReadStatus(mailboxId, folderId, itemId, isRead: false, cancellationToken);
+    }
+
+    [McpServerTool, Description("Marks an email message as flagged (starred/important).")]
+    public async Task<OperationResult> MarkItemFlagged(
+        [Description("The mailbox ID.")] string mailboxId,
+        [Description("Current folder path of the item.")] string folderId,
+        [Description("The email message unique ID.")] string itemId,
+        CancellationToken cancellationToken = default)
+    {
+        return await mailboxService.SetItemFlaggedStatus(mailboxId, folderId, itemId, isFlagged: true, cancellationToken);
+    }
+
+    [McpServerTool, Description("Removes the flagged (starred/important) flag from an email message.")]
+    public async Task<OperationResult> MarkItemUnflagged(
+        [Description("The mailbox ID.")] string mailboxId,
+        [Description("Current folder path of the item.")] string folderId,
+        [Description("The email message unique ID.")] string itemId,
+        CancellationToken cancellationToken = default)
+    {
+        return await mailboxService.SetItemFlaggedStatus(mailboxId, folderId, itemId, isFlagged: false, cancellationToken);
+    }
 }

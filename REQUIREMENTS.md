@@ -100,6 +100,10 @@ flowchart TD
 - **List Mailbox Folders**:
   - MCP Tool: `list_folders(mailbox_id)`
   - Returns: Folder tree hierarchy with metadata (id, name, path, attributes like `\\Inbox`, `\\Trash`, `\\Sent`, unread count, total item count).
+- **Create Folder / Directory**:
+  - MCP Tool: `create_folder(mailbox_id, folder_name, parent_folder_id?)`
+  - Behavior: Creates a new folder or directory under the designated parent folder, or at the root personal namespace level if no parent folder is specified.
+  - Returns: `OperationResult` indicating success or failure.
 
 ### 3. Folder Item Operations
 
@@ -131,6 +135,14 @@ flowchart TD
     - Locates the mailbox's designated Archive folder based on IMAP folder attributes (`SpecialFolder.Archive` / `FolderAttributes.Archive`).
     - If already in Archive, returns a friendly error or no-op (cannot archive an item already in archive).
     - Moves the item to the Archive folder internally.
+- **Mark Item Read / Unread**:
+  - MCP Tools: `mark_item_read(mailbox_id, folder_id, item_id)`, `mark_item_unread(mailbox_id, folder_id, item_id)`
+  - Behavior: Adds or removes the IMAP `\Seen` message flag on the specified item.
+  - Returns: `OperationResult` indicating success or failure.
+- **Mark Item Flagged / Unflagged**:
+  - MCP Tools: `mark_item_flagged(mailbox_id, folder_id, item_id)`, `mark_item_unflagged(mailbox_id, folder_id, item_id)`
+  - Behavior: Adds or removes the IMAP `\Flagged` message flag on the specified item.
+  - Returns: `OperationResult` indicating success or failure.
 
 ### 5. Send Operations (Stubbed)
 

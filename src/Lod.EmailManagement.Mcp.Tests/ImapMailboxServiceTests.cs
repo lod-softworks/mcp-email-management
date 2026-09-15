@@ -77,4 +77,37 @@ public class ImapMailboxServiceTests
 
         mailboxes.Should().BeEmpty();
     }
+
+    [Fact]
+    public async Task CreateFolderReturnsFailureWhenFolderNameIsEmpty()
+    {
+        ImapMailboxService service = new(_clientFactoryMock.Object, _configuration, _loggerMock.Object);
+
+        OperationResult result = await service.CreateFolder("work", "   ");
+
+        result.Success.Should().BeFalse();
+        result.Message.Should().Contain("Folder name cannot be empty");
+    }
+
+    [Fact]
+    public async Task SetItemReadStatusReturnsFailureWhenItemIdIsInvalid()
+    {
+        ImapMailboxService service = new(_clientFactoryMock.Object, _configuration, _loggerMock.Object);
+
+        OperationResult result = await service.SetItemReadStatus("work", "INBOX", "not-a-valid-uid", true);
+
+        result.Success.Should().BeFalse();
+        result.Message.Should().Contain("Invalid item UniqueId");
+    }
+
+    [Fact]
+    public async Task SetItemFlaggedStatusReturnsFailureWhenItemIdIsInvalid()
+    {
+        ImapMailboxService service = new(_clientFactoryMock.Object, _configuration, _loggerMock.Object);
+
+        OperationResult result = await service.SetItemFlaggedStatus("work", "INBOX", "not-a-valid-uid", true);
+
+        result.Success.Should().BeFalse();
+        result.Message.Should().Contain("Invalid item UniqueId");
+    }
 }

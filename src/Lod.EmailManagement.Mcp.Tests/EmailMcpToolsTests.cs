@@ -158,4 +158,76 @@ public class EmailMcpToolsTests
         capturedRequest.Cc.Should().BeEquivalentTo(cc);
         capturedRequest.Bcc.Should().BeEquivalentTo(bcc);
     }
+
+    [Fact]
+    public async Task CreateFolderCallsService()
+    {
+        OperationResult expected = new(true, "Folder created");
+        _mailboxServiceMock.Setup(s => s.CreateFolder("work", "Projects", null, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(expected);
+
+        OperationResult result = await _tools.CreateFolder("work", "Projects");
+
+        result.Should().Be(expected);
+    }
+
+    [Fact]
+    public async Task CreateFolderCallsServiceWithParentFolder()
+    {
+        OperationResult expected = new(true, "Folder created");
+        _mailboxServiceMock.Setup(s => s.CreateFolder("work", "SubProject", "Projects", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(expected);
+
+        OperationResult result = await _tools.CreateFolder("work", "SubProject", "Projects");
+
+        result.Should().Be(expected);
+    }
+
+    [Fact]
+    public async Task MarkItemReadCallsService()
+    {
+        OperationResult expected = new(true, "Item marked as read");
+        _mailboxServiceMock.Setup(s => s.SetItemReadStatus("work", "INBOX", "123", true, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(expected);
+
+        OperationResult result = await _tools.MarkItemRead("work", "INBOX", "123");
+
+        result.Should().Be(expected);
+    }
+
+    [Fact]
+    public async Task MarkItemUnreadCallsService()
+    {
+        OperationResult expected = new(true, "Item marked as unread");
+        _mailboxServiceMock.Setup(s => s.SetItemReadStatus("work", "INBOX", "123", false, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(expected);
+
+        OperationResult result = await _tools.MarkItemUnread("work", "INBOX", "123");
+
+        result.Should().Be(expected);
+    }
+
+    [Fact]
+    public async Task MarkItemFlaggedCallsService()
+    {
+        OperationResult expected = new(true, "Item marked as flagged");
+        _mailboxServiceMock.Setup(s => s.SetItemFlaggedStatus("work", "INBOX", "123", true, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(expected);
+
+        OperationResult result = await _tools.MarkItemFlagged("work", "INBOX", "123");
+
+        result.Should().Be(expected);
+    }
+
+    [Fact]
+    public async Task MarkItemUnflaggedCallsService()
+    {
+        OperationResult expected = new(true, "Item marked as unflagged");
+        _mailboxServiceMock.Setup(s => s.SetItemFlaggedStatus("work", "INBOX", "123", false, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(expected);
+
+        OperationResult result = await _tools.MarkItemUnflagged("work", "INBOX", "123");
+
+        result.Should().Be(expected);
+    }
 }

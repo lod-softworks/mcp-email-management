@@ -51,6 +51,26 @@ public interface IMailboxService
         string mailboxId,
         SendEmailRequest request,
         CancellationToken cancellationToken = default);
+
+    Task<OperationResult> CreateFolder(
+        string mailboxId,
+        string folderName,
+        string? parentFolderId = null,
+        CancellationToken cancellationToken = default);
+
+    Task<OperationResult> SetItemReadStatus(
+        string mailboxId,
+        string folderId,
+        string itemId,
+        bool isRead,
+        CancellationToken cancellationToken = default);
+
+    Task<OperationResult> SetItemFlaggedStatus(
+        string mailboxId,
+        string folderId,
+        string itemId,
+        bool isFlagged,
+        CancellationToken cancellationToken = default);
 }
 
 
@@ -337,6 +357,95 @@ public class ImapMailboxService(
             request.Subject);
 
         throw new NotImplementedException("Sending email is not implemented in this version of Email Management MCP.");
+    }
+
+    public async Task<OperationResult> CreateFolder(
+        string mailboxId,
+        string folderName,
+        string? parentFolderId = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(folderName))
+        {
+            return new OperationResult(false, "Folder name cannot be empty.");
+        }
+
+        using IImapClient client = await clientFactory.CreateConnectedClient(mailboxId, cancellationToken);
+        IMailFolder? parentFolder;
+        if (!string.IsNullOrWhiteSpace(parentFolderId))
+        {
+            parentFolder = await client.GetFolderAsync(parentFolderId, cancellationToken);
+        }
+        else
+        {
+            string rootPath = client.PersonalNamespaces.FirstOrDefault()?.Path ?? string.Empty;
+            parentFolder = await client.GetFolderAsync(rootPath, cancellationToken);
+        }
+
+        if (parentFolder is null)
+        {
+            return new OperationResult(false, $"Parent folder could not be found for mailbox '{mailboxId}'.");
+        }
+
+        IMailFolder? created = await parentFolder.CreateAsync(folderName, isMessageFolder: true, cancellationToken);
+        if (created is null)
+        {
+            return new OperationResult(false, $"Failed to create folder '{folderName}'.");
+        }
+
+        return new OperationResult(true, $"Folder '{created.FullName}' successfully created.");
+    }
+
+    public async Task<OperationResult> SetItemReadStatus(
+        string mailboxId,
+        string folderId,
+        string itemId,
+        bool isRead,
+        CancellationToken cancellationToken = default)
+    {
+        if (!UniqueId.TryParse(itemId, out UniqueId uid))
+        {
+            return new OperationResult(false, $"Invalid item UniqueId '{itemId}'.");
+        }
+
+        using IImapClient client = await clientFactory.CreateConnectedClient(mailboxId, cancellationToken);
+        IMailFolder folder = await client.GetFolderAsync(folderId, cancellationToken);
+        await folder.OpenAsync(FolderAccess.ReadWrite, cancellationToken);
+
+        if (isRead)
+        {
+            await folder.AddFlagsAsync(uid, MessageFlags.Seen, silent: true, cancellationToken);
+            return new OperationResult(true, $"Item {itemId} marked as read.");
+        }
+
+        await folder.RemoveFlagsAsync(uid, MessageFlags.Seen, silent: true, cancellationToken);
+        return new OperationResult(true, $"Item {itemId} marked as unread.");
+    }
+
+    public async Task<OperationResult> SetItemFlaggedStatus(
+        string mailboxId,
+        string folderId,
+        string itemId,
+        bool isFlagged,
+        CancellationToken cancellationToken = default)
+    {
+        if (!UniqueId.TryParse(itemId, out UniqueId uid))
+        {
+            return new OperationResult(false, $"Invalid item UniqueId '{itemId}'.");
+        }
+
+        using IImapClient client = await clientFactory.CreateConnectedClient(mailboxId, cancellationToken);
+        IMailFolder folder = await client.GetFolderAsync(folderId, cancellationToken);
+        await folder.OpenAsync(FolderAccess.ReadWrite, cancellationToken);
+
+        if (isFlagged)
+        {
+            await folder.AddFlagsAsync(uid, MessageFlags.Flagged, silent: true, cancellationToken);
+            return new OperationResult(true, $"Item {itemId} marked as flagged.");
+        }
+
+        await folder.RemoveFlagsAsync(uid, MessageFlags.Flagged, silent: true, cancellationToken);
+        return new OperationResult(true, $"Item {itemId} marked as unflagged.");
     }
 
     private static IMailFolder? ResolveTrashFolder(IImapClient client)

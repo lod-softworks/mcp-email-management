@@ -90,6 +90,11 @@ public class McpEndpointIntegrationTests : IClassFixture<WebApplicationFactory<P
         content.Should().Contain("trash_item");
         content.Should().Contain("archive_item");
         content.Should().Contain("send_email");
+        content.Should().Contain("create_folder");
+        content.Should().Contain("mark_item_read");
+        content.Should().Contain("mark_item_unread");
+        content.Should().Contain("mark_item_flagged");
+        content.Should().Contain("mark_item_unflagged");
     }
 
     [Fact]
@@ -280,5 +285,34 @@ public class McpEndpointIntegrationTests : IClassFixture<WebApplicationFactory<P
         string content = await response.Content.ReadAsStringAsync();
         content.Should().Contain("\"isError\":true");
         content.Should().Contain("send_email");
+    }
+
+    [Fact]
+    public async Task McpEndpointHandlesToolsCallCreateFolderValidation()
+    {
+        HttpClient client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-API-Key", "dev-api-key-12345");
+        client.DefaultRequestHeaders.Add("Accept", "application/json, text/event-stream");
+
+        string callJson = """
+        {
+            "jsonrpc": "2.0",
+            "id": 23,
+            "method": "tools/call",
+            "params": {
+                "name": "create_folder",
+                "arguments": {
+                    "mailboxId": "primary",
+                    "folderName": "   "
+                }
+            }
+        }
+        """;
+
+        HttpResponseMessage response = await client.PostAsync("/mcp", new StringContent(callJson, System.Text.Encoding.UTF8, "application/json"));
+
+        response.IsSuccessStatusCode.Should().BeTrue();
+        string content = await response.Content.ReadAsStringAsync();
+        content.Should().Contain("Folder name cannot be empty");
     }
 }
