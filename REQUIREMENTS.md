@@ -160,7 +160,7 @@ flowchart TD
 
 ### Key Vault Organization
 
-The application requires an Azure Key Vault URI configured via environment variables (`AZURE_KEYVAULT_URI` or `KeyVault:VaultUri`).
+The application optionally resolves an Azure Key Vault URI configured via `AzureKeyVault:VaultUri` or `KeyVault:VaultUri` in configuration (or environment variables `AzureKeyVault__VaultUri` / `KeyVault__VaultUri`). When configured with a valid absolute URI, secrets are loaded into application configuration using `DefaultAzureCredential`. In local development without a vault, leaving this setting empty falls back to User Secrets or `appsettings.json`.
 
 Sensitive settings stored in Key Vault:
 

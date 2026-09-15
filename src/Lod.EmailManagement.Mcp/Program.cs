@@ -1,9 +1,13 @@
+using Azure.Identity;
 using Lod.EmailManagement.Mcp.Authentication;
 using Lod.EmailManagement.Mcp.Configuration;
 using Lod.EmailManagement.Mcp.Services;
 using Microsoft.AspNetCore.Authentication;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
+
+// Azure Key Vault
+builder.Configuration.AddAzureKeyVault();
 
 // Configuration options
 builder.Services.Configure<KeyVaultOptions>(builder.Configuration.GetSection(KeyVaultOptions.SectionName));
@@ -39,3 +43,17 @@ app.MapMcp("/mcp")
 
 await app.RunAsync();
 
+public static class AzureKeyVaultExtensions
+{
+    public static IConfigurationManager AddAzureKeyVault(this IConfigurationManager configuration)
+    {
+        string? vaultUri = configuration["AzureKeyVault:VaultUri"] ?? configuration["KeyVault:VaultUri"];
+
+        if (!string.IsNullOrEmpty(vaultUri) && Uri.TryCreate(vaultUri, UriKind.Absolute, out Uri? uri))
+        {
+            configuration.AddAzureKeyVault(uri, new DefaultAzureCredential());
+        }
+
+        return configuration;
+    }
+}
