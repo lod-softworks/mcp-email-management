@@ -21,7 +21,6 @@ public class MailboxAccountOptionsTests
             ["Mailboxes:0:SmtpPort"] = "587",
             ["Mailboxes:0:SmtpUseSsl"] = "true",
             ["Mailboxes:0:SmtpUsername"] = "agent-smtp",
-            ["Mailboxes:0:Username"] = "agent@example.com",
             ["Mailboxes:0:IsActive"] = "true"
         };
 

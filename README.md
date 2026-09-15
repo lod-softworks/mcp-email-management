@@ -76,7 +76,6 @@ Non-sensitive configuration (Key Vault endpoint, logging, feature flags, and mai
       "SmtpHost": "smtp.example.com",
       "SmtpPort": 587,
       "SmtpUseSsl": true,
-      "Username": "agent@example.com",
       "IsActive": true
     },
     {
@@ -86,15 +85,22 @@ Non-sensitive configuration (Key Vault endpoint, logging, feature flags, and mai
       "ImapHost": "imap.example.com",
       "ImapPort": 993,
       "ImapUseSsl": true,
+      "ImapUserName": "support-custom-imap-user",
       "SmtpHost": "smtp.example.com",
       "SmtpPort": 587,
       "SmtpUseSsl": true,
-      "Username": "support@example.com",
+      "SmtpUserName": "support-custom-smtp-user",
       "IsActive": true
     }
   ]
 }
 ```
+
+> [!NOTE]
+> **Optional IMAP & SMTP Usernames**:
+> - `ImapUserName` *(optional)*: The login username for IMAP. When omitted or left blank, the service automatically uses `EmailAddress`.
+> - `SmtpUserName` *(optional)*: The login username for SMTP. When omitted or left blank, the service automatically falls back to `ImapUserName` (if provided), or `EmailAddress`.
+> In most email configurations (e.g. Microsoft 365, Google Workspace, standard email hosts), credentials use the email address directly, so `ImapUserName` and `SmtpUserName` only need to be configured when the host requires a distinct username.
 
 The Key Vault URI can also be configured via the `AZURE_KEYVAULT_URI` environment variable:
 ```bash
@@ -112,7 +118,6 @@ All sensitive values—specifically **client API keys** and **mailbox passwords*
 | **Client API Key** | `Authentication--ApiKeys--<index>` | `Authentication--ApiKeys--0` | `lod-agent-key-abcdef123456` | Authorized API key for MCP clients connecting to `/mcp`. |
 | **Email Sending Switch** | `EmailSending--Enabled` | `EmailSending--Enabled` | `true` | Global safety switch controlling whether MCP clients can send outgoing emails via SMTP. |
 | **Mailbox Password** | `Passwords--<mailbox-id>` | `Passwords--primary` | `my-secure-email-password` | Password matching the mailbox's `Id` in `appsettings.json`. |
-| **Mailbox Password (Email Fallback)** | `Passwords--<sanitized-email>` | `Passwords--agent-example-com` | `my-secure-email-password` | Dedicated email password (characters like `@` and `.` converted to `-`). |
 
 ### Email Sending Configuration
 
