@@ -10,6 +10,7 @@
     <Product>Email Management MCP</Product>
     <Company>Lod Softworks LLC</Company>
     <Copyright>Copyright © Lod Softworks LLC</Copyright>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <Description>ASP.NET Core service providing a Model Context Protocol (MCP) server for email management via IMAP/SMTP.</Description>
     <UserSecretsId>email-mcp-server</UserSecretsId>
   </PropertyGroup>

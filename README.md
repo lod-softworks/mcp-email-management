@@ -240,3 +240,9 @@ dotnet test
 - **[REQUIREMENTS.md](REQUIREMENTS.md)**: Product Requirements Document (PRD) detailing architecture, data models, error handling, and implementation specifics.
 - **[AGENTS.md](AGENTS.md)**: Index and conventions for AI agents working in this repository.
 - **[.agents/skills/dotnet/](.agents/skills/dotnet/)**: C# and .NET coding standards from Lod Softworks.
+
+---
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
