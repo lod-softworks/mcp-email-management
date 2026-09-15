@@ -11,7 +11,7 @@ The service connects to email providers via **IMAP/SMTP** (using MailKit/MimeKit
 ## Goals
 
 - **Agentic Workflow Enablement**: Expose structured, low-latency MCP tools over Streamable HTTP and Server-Sent Events (SSE) so agents (Cursor, Claude, Copilot, custom agent runners) can inspect and manage emails in real time.
-- **Protocol Standardization**: Connect to standard email backends via IMAP (for retrieval, folder listing, moving, trashing) and SMTP (for eventual outgoing delivery).
+- **Protocol Standardization**: Connect to standard email backends via IMAP (for retrieval, folder listing, moving, trashing) and SMTP (for outgoing email delivery).
 - **Safe Deletions (Soft Delete / Trash)**: Ensure item trashing always moves messages internally to the designated Trash/Deleted Items folder rather than permanently deleting them from the mail store.
 - **Secure Secrets Management**: Zero hardcoded credentials; all server details, access keys, and passwords are retrieved from Azure Key Vault using `DefaultAzureCredential` / Managed Identity.
 - **Lod Softworks Compliance**: Strict adherence to Lod Softworks engineering conventions: file-scoped namespaces, record classes for models, primary constructors, explicit typing, no `Async` suffix on async methods, and solution layout under `src/`.
@@ -144,13 +144,15 @@ flowchart TD
   - Behavior: Adds or removes the IMAP `\Flagged` message flag on the specified item.
   - Returns: `OperationResult` indicating success or failure.
 
-### 5. Send Operations (Stubbed)
+### 5. Send Operations
 
 - **Send Email**:
   - MCP Tool: `send_email(mailbox_id, to, subject, body_text, body_html?, cc?, bcc?)`
-  - Behavior:
-    - Logs a warning with the mailbox ID, recipient list, and subject line.
-    - Intentionally throws `System.NotImplementedException` (returning an MCP tool error) until full SMTP delivery is enabled.
+  - **Feature Flag Control**: Regulated by the `EmailSending:Enabled` configuration flag (default: `false`).
+    - When `false`: Attempting to send throws `System.InvalidOperationException` ("Email sending is disabled by configuration.") which causes the MCP server to return a tool execution error (`isError: true`) and logs a warning.
+    - When `true`: Composes a MIME email (`MimeMessage`) with headers, plain text, optional HTML body, and recipient addresses (`To`, `Cc`, `Bcc`), connects to the mailbox's SMTP server via MailKit (`ISmtpClient`), transmits the message, and returns an `OperationResult`.
+  - **Validation**: Ensures at least one recipient address is specified, recipient addresses are valid email formats, and body content (plain text or HTML) is present.
+  - **Returns**: `OperationResult` indicating success or failure.
 
 ---
 
@@ -167,6 +169,7 @@ Sensitive settings stored in Key Vault:
 | `Passwords--{sanitized-email}` or `{sanitized-email}` | Dedicated email password mapped by email address (disallowed characters `@` and `.` converted to `-`) |
 | `ApiKeys` | JSON array (`["key1","key2"]`) or comma-separated authorized client API keys |
 | `ApiKeys--{index}` | Individual indexed authorized client API key |
+| `EmailSending--Enabled` | Global safety flag (`true`/`false`) controlling whether outgoing email delivery is enabled |
 | `Mailboxes--{id}--ImapHost` | IMAP server hostname (e.g. `imap.domain.com`) |
 | `Mailboxes--{id}--ImapPort` | IMAP port (e.g. `993`) |
 | `Mailboxes--{id}--ImapSsl` | SSL/TLS mode (`Auto`, `SslOnConnect`, `StartTls`) |

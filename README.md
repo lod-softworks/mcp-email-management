@@ -38,7 +38,7 @@ When connected via an MCP client, the following tools are exposed:
 | `mark_item_unread` | `mailbox_id`, `folder_id`, `item_id` | Marks an email message as unread. |
 | `mark_item_flagged` | `mailbox_id`, `folder_id`, `item_id` | Marks an email message as flagged (starred/important). |
 | `mark_item_unflagged` | `mailbox_id`, `folder_id`, `item_id` | Removes the flagged (starred/important) flag from an email message. |
-| `send_email` | `mailbox_id`, `to`, `subject`, `body_text`, `body_html?`, `cc?`, `bcc?` | Sends an email (currently logs attempt and throws `NotImplementedException`). |
+| `send_email` | `mailbox_id`, `to`, `subject`, `body_text`, `body_html?`, `cc?`, `bcc?` | Sends an email via SMTP (controlled by configuration flag `EmailSending:Enabled`). |
 
 ---
 
@@ -48,7 +48,7 @@ The application follows the security practice of storing application settings in
 
 ### Application Settings (`appsettings.json`)
 
-Non-sensitive configuration (Key Vault endpoint, logging, and mailbox server connection details) is defined in `appsettings.json`. Passwords and API keys are intentionally omitted:
+Non-sensitive configuration (Key Vault endpoint, logging, feature flags, and mailbox server connection details) is defined in `appsettings.json`. Passwords and API keys are intentionally omitted:
 
 ```json
 {
@@ -61,6 +61,9 @@ Non-sensitive configuration (Key Vault endpoint, logging, and mailbox server con
   "AllowedHosts": "*",
   "KeyVault": {
     "VaultUri": "https://<your-key-vault-name>.vault.azure.net/"
+  },
+  "EmailSending": {
+    "Enabled": false
   },
   "Mailboxes": [
     {
@@ -107,8 +110,23 @@ All sensitive values—specifically **client API keys** and **mailbox passwords*
 | Secret Type | Key Vault Secret Name Pattern | Example Secret Name | Example Value | Description |
 |-------------|-------------------------------|---------------------|---------------|-------------|
 | **Client API Key** | `Authentication--ApiKeys--<index>` | `Authentication--ApiKeys--0` | `lod-agent-key-abcdef123456` | Authorized API key for MCP clients connecting to `/mcp`. |
+| **Email Sending Switch** | `EmailSending--Enabled` | `EmailSending--Enabled` | `true` | Global safety switch controlling whether MCP clients can send outgoing emails via SMTP. |
 | **Mailbox Password** | `Passwords--<mailbox-id>` | `Passwords--primary` | `my-secure-email-password` | Password matching the mailbox's `Id` in `appsettings.json`. |
 | **Mailbox Password (Email Fallback)** | `Passwords--<sanitized-email>` | `Passwords--agent-example-com` | `my-secure-email-password` | Dedicated email password (characters like `@` and `.` converted to `-`). |
+
+### Email Sending Configuration
+
+Outgoing email delivery via SMTP is controlled by a dedicated configuration safety flag:
+
+```json
+"EmailSending": {
+  "Enabled": false
+}
+```
+
+- **Default Safety Mode**: Defaults to `false`. When disabled, any invocation of the `send_email` MCP tool will log a warning and return an MCP execution error (`isError: true`), preventing unintended email transmission.
+- **Enabling Sending**: Set `"EmailSending:Enabled": true` in `appsettings.json`, via environment variable (`EmailSending__Enabled=true`), or in Azure Key Vault (`EmailSending--Enabled="true"`).
+- **Delivery**: When enabled, outgoing emails are composed and transmitted via MailKit's SMTP client using the server parameters (`SmtpHost`, `SmtpPort`, `SmtpUseSsl`, and credentials) defined for the specified mailbox. Recipients in `to`, `cc`, and `bcc` are validated, and plain text with optional HTML body formatting is supported.
 
 #### Azure CLI Examples
 

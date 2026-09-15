@@ -101,14 +101,15 @@ public class EmailMcpToolsTests
     }
 
     [Fact]
-    public async Task SendEmailCallsServiceAndThrowsNotImplementedException()
+    public async Task SendEmailPropagatesExceptionWhenServiceThrows()
     {
         _mailboxServiceMock.Setup(s => s.SendEmail("work", It.IsAny<SendEmailRequest>(), It.IsAny<CancellationToken>()))
-            .ThrowsAsync(new NotImplementedException("Sending email is not implemented."));
+            .ThrowsAsync(new InvalidOperationException("Email sending is disabled by configuration."));
 
         Func<Task> act = async () => await _tools.SendEmail("work", ["user@example.com"], "Subject", "Body");
 
-        await act.Should().ThrowAsync<NotImplementedException>();
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*disabled by configuration*");
     }
 
     [Fact]
