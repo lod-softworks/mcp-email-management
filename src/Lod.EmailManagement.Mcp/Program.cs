@@ -9,7 +9,6 @@ WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
 // Configuration options
 builder.Services.Configure<KeyVaultOptions>(builder.Configuration.GetSection(KeyVaultOptions.SectionName));
-builder.Services.Configure<ClientApiKeyOptions>(builder.Configuration.GetSection(ClientApiKeyOptions.SectionName));
 
 // Caching
 builder.Services.AddMemoryCache();
@@ -21,7 +20,6 @@ builder.Services.AddAuthentication(ApiKeyAuthenticationHandler.SchemeName)
 builder.Services.AddAuthorization();
 
 // Core Services
-builder.Services.AddSingleton<ISecretService, KeyVaultSecretService>();
 builder.Services.AddSingleton<IImapClientFactory, ImapClientFactory>();
 builder.Services.AddScoped<IMailboxService, ImapMailboxService>();
 
@@ -56,4 +54,3 @@ app.MapMcpEndpoints();
 
 await app.RunAsync();
 
-public partial class Program { }

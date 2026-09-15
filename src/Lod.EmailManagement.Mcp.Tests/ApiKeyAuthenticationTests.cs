@@ -1,99 +1,47 @@
-using System.Security.Claims;
-using System.Text.Encodings.Web;
 using FluentAssertions;
 using Lod.EmailManagement.Mcp.Authentication;
-using Lod.EmailManagement.Mcp.Configuration;
-using Lod.EmailManagement.Mcp.Services;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Moq;
+using System.Security.Claims;
+using System.Text.Encodings.Web;
 
 namespace Lod.EmailManagement.Mcp.Tests;
 
 public class ApiKeyAuthenticationTests
 {
-    private readonly Mock<ISecretService> _secretServiceMock = new();
-    private readonly IMemoryCache _memoryCache = new MemoryCache(new MemoryCacheOptions());
-    private readonly IOptions<ClientApiKeyOptions> _options = Microsoft.Extensions.Options.Options.Create(new ClientApiKeyOptions
-    {
-        Keys = ["config-key-123"],
-        CacheDurationMinutes = 5
-    });
-
     [Fact]
     public async Task ValidateKeyMatchesKeyFromJsonArrayInKeyVault()
     {
-        _secretServiceMock.Setup(s => s.GetSecret("ApiKeys", It.IsAny<CancellationToken>()))
-            .ReturnsAsync("[\"vault-key-1\", \"vault-key-2\"]");
+        ReadOnlySpan<byte> json = """
+                                  {
+                                    "Authentication": {
+                                      "ApiKeys": [
+                                        "vault-key-1",
+                                        "vault-key-2"
+                                      ]
+                                    }
+                                  }
+                                  """u8;
 
-        IConfiguration config = new ConfigurationBuilder().Build();
-        ApiKeyValidator validator = new(
-            _secretServiceMock.Object,
-            config,
-            _options,
-            _memoryCache,
-            NullLogger<ApiKeyValidator>.Instance);
+        IConfiguration config = new ConfigurationBuilder().AddJsonStream(new MemoryStream(json.ToArray())).Build();
+        ApiKeyValidator validator = new(config);
 
-        bool isValid = await validator.ValidateKey("vault-key-2");
-        bool isInvalid = await validator.ValidateKey("wrong-key");
-
-        isValid.Should().BeTrue();
-        isInvalid.Should().BeFalse();
-    }
-
-    [Fact]
-    public async Task ValidateKeyMatchesKeyFromCommaSeparatedStringInKeyVault()
-    {
-        _secretServiceMock.Setup(s => s.GetSecret("ApiKeys", It.IsAny<CancellationToken>()))
-            .ReturnsAsync("vault-comma-1, vault-comma-2");
-
-        IConfiguration config = new ConfigurationBuilder().Build();
-        ApiKeyValidator validator = new(
-            _secretServiceMock.Object,
-            config,
-            _options,
-            _memoryCache,
-            NullLogger<ApiKeyValidator>.Instance);
-
-        bool isValid = await validator.ValidateKey("vault-comma-1");
-
-        isValid.Should().BeTrue();
-    }
-
-    [Fact]
-    public async Task ValidateKeyMatchesKeyFromLocalConfiguration()
-    {
-        _secretServiceMock.Setup(s => s.GetSecret(It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((string?)null);
-
-        IConfiguration config = new ConfigurationBuilder().Build();
-        ApiKeyValidator validator = new(
-            _secretServiceMock.Object,
-            config,
-            _options,
-            _memoryCache,
-            NullLogger<ApiKeyValidator>.Instance);
-
-        bool isValid = await validator.ValidateKey("config-key-123");
-
-        isValid.Should().BeTrue();
+        (await validator.ValidateKey("vault-key-1")).Should().BeTrue();
+        (await validator.ValidateKey("vault-key-2")).Should().BeTrue();
+        (await validator.ValidateKey("vault-key-3")).Should().BeFalse();
+        (await validator.ValidateKey("wrong-key")).Should().BeFalse();
     }
 
     [Fact]
     public async Task ValidateKeyRejectsEmptyOrWhitespace()
     {
         IConfiguration config = new ConfigurationBuilder().Build();
-        ApiKeyValidator validator = new(
-            _secretServiceMock.Object,
-            config,
-            _options,
-            _memoryCache,
-            NullLogger<ApiKeyValidator>.Instance);
+        ApiKeyValidator validator = new(config);
 
         bool isNullValid = await validator.ValidateKey(string.Empty);
         bool isSpaceValid = await validator.ValidateKey("   ");
@@ -135,7 +83,7 @@ public class ApiKeyAuthenticationTests
         ApiKeyAuthenticationHandler handler = CreateHandler(validatorMock.Object);
 
         DefaultHttpContext context = new();
-        context.Request.Headers["Authorization"] = "Bearer bearer-token-123";
+        context.Request.Headers.Authorization = "Bearer bearer-token-123";
 
         await handler.InitializeAsync(
             new AuthenticationScheme("ApiKey", "ApiKey", typeof(ApiKeyAuthenticationHandler)),

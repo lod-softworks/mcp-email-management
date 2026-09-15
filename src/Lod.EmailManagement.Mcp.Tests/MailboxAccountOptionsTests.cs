@@ -37,7 +37,7 @@ public class MailboxAccountOptionsTests
         mailbox.SmtpHost.Should().Be("smtp.example.com");
         mailbox.SmtpPort.Should().Be(587);
         mailbox.SmtpUseSsl.Should().BeTrue();
-        mailbox.SmtpUsername.Should().Be("agent-smtp");
+        mailbox.SmtpUserName.Should().Be("agent-smtp");
     }
 
     [Fact]
@@ -48,6 +48,6 @@ public class MailboxAccountOptionsTests
         options.SmtpPort.Should().Be(587);
         options.SmtpUseSsl.Should().BeTrue();
         options.SmtpHost.Should().BeEmpty();
-        options.SmtpUsername.Should().BeNull();
+        options.SmtpUserName.Should().BeNull();
     }
 }
