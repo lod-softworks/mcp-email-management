@@ -1,6 +1,13 @@
 using System.Net;
 using FluentAssertions;
+using MailKit.Net.Smtp;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using MimeKit;
+using Moq;
+using Lod.EmailManagement.Mcp.Configuration;
+using Lod.EmailManagement.Mcp.Services;
 
 namespace Lod.EmailManagement.Mcp.Tests;
 
@@ -314,5 +321,66 @@ public class McpEndpointIntegrationTests : IClassFixture<WebApplicationFactory<P
         response.IsSuccessStatusCode.Should().BeTrue();
         string content = await response.Content.ReadAsStringAsync();
         content.Should().Contain("Folder name cannot be empty");
+    }
+
+    [Fact]
+    public async Task McpEndpointHandlesToolsCallSendEmailWhenEnabled()
+    {
+        Mock<ISmtpClient> smtpClientMock = new();
+        smtpClientMock.Setup(c => c.SendAsync(It.IsAny<MimeMessage>(), It.IsAny<CancellationToken>(), null))
+            .ReturnsAsync("OK");
+
+        Mock<ISmtpClientFactory> smtpFactoryMock = new();
+        smtpFactoryMock.Setup(f => f.CreateConnectedClient("primary", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(smtpClientMock.Object);
+
+        WebApplicationFactory<Program> customFactory = _factory.WithWebHostBuilder(builder =>
+        {
+            builder.ConfigureAppConfiguration((_, config) =>
+            {
+                config.AddInMemoryCollection(new Dictionary<string, string?>
+                {
+                    ["EmailSending:Enabled"] = "true",
+                    ["Mailboxes:0:Id"] = "primary",
+                    ["Mailboxes:0:DisplayName"] = "Primary Work Email",
+                    ["Mailboxes:0:EmailAddress"] = "agent@example.com",
+                    ["Mailboxes:0:SmtpHost"] = "smtp.example.com",
+                    ["Mailboxes:0:IsActive"] = "true"
+                });
+            });
+            builder.ConfigureServices(services =>
+            {
+                services.Configure<EmailSendingOptions>(opt => opt.Enabled = true);
+                services.AddSingleton<ISmtpClientFactory>(smtpFactoryMock.Object);
+            });
+        });
+
+        HttpClient client = customFactory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-API-Key", "dev-api-key-12345");
+        client.DefaultRequestHeaders.Add("Accept", "application/json, text/event-stream");
+
+        string callJson = """
+        {
+            "jsonrpc": "2.0",
+            "id": 24,
+            "method": "tools/call",
+            "params": {
+                "name": "send_email",
+                "arguments": {
+                    "mailboxId": "primary",
+                    "to": ["recipient@example.com"],
+                    "subject": "Integration Test",
+                    "bodyText": "Hello from integration test"
+                }
+            }
+        }
+        """;
+
+        HttpResponseMessage response = await client.PostAsync("/mcp", new StringContent(callJson, System.Text.Encoding.UTF8, "application/json"));
+
+        response.IsSuccessStatusCode.Should().BeTrue();
+        string content = await response.Content.ReadAsStringAsync();
+        content.Should().Contain("Email successfully sent");
+        smtpClientMock.Verify(c => c.SendAsync(It.IsAny<MimeMessage>(), It.IsAny<CancellationToken>(), null), Times.Once);
     }
 }

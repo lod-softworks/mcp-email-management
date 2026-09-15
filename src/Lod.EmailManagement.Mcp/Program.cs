@@ -7,6 +7,7 @@ WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
 // Configuration options
 builder.Services.Configure<KeyVaultOptions>(builder.Configuration.GetSection(KeyVaultOptions.SectionName));
+builder.Services.Configure<EmailSendingOptions>(builder.Configuration.GetSection(EmailSendingOptions.SectionName));
 
 // Caching
 builder.Services.AddMemoryCache();
@@ -19,6 +20,7 @@ builder.Services.AddAuthorization();
 
 // Core Services
 builder.Services.AddSingleton<IImapClientFactory, ImapClientFactory>();
+builder.Services.AddSingleton<ISmtpClientFactory, SmtpClientFactory>();
 builder.Services.AddScoped<IMailboxService, ImapMailboxService>();
 
 // MCP Services (Official ModelContextProtocol SDK)

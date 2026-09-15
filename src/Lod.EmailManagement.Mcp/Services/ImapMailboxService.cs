@@ -1,6 +1,8 @@
 using MailKit;
 using MailKit.Net.Imap;
+using MailKit.Net.Smtp;
 using MailKit.Search;
+using Microsoft.Extensions.Options;
 using MimeKit;
 using Lod.EmailManagement.Mcp.Configuration;
 using Lod.EmailManagement.Mcp.Models;
@@ -76,6 +78,8 @@ public interface IMailboxService
 
 public class ImapMailboxService(
     IImapClientFactory clientFactory,
+    ISmtpClientFactory smtpClientFactory,
+    IOptions<EmailSendingOptions> emailSendingOptions,
     IConfiguration configuration,
     ILogger<ImapMailboxService> logger) : IMailboxService
 {
@@ -344,19 +348,117 @@ public class ImapMailboxService(
         return new OperationResult(false, $"Failed to move item {itemId} to Archive ('{archiveFolder.FullName}').");
     }
 
-    public Task<OperationResult> SendEmail(
+    public async Task<OperationResult> SendEmail(
         string mailboxId,
         SendEmailRequest request,
         CancellationToken cancellationToken = default)
     {
-        string recipients = string.Join(", ", request.To);
-        logger.LogWarning(
-            "Attempted to send email via mailbox '{MailboxId}' to '{Recipients}' with subject '{Subject}'. Sending is not implemented.",
-            mailboxId,
-            recipients,
-            request.Subject);
+        bool isEnabled = emailSendingOptions?.Value?.Enabled ?? false;
+        if (!isEnabled)
+        {
+            string recipients = string.Join(", ", request.To);
+            logger.LogWarning(
+                "Attempted to send email via mailbox '{MailboxId}' to '{Recipients}' with subject '{Subject}', but email sending is disabled by configuration.",
+                mailboxId,
+                recipients,
+                request.Subject);
 
-        throw new NotImplementedException("Sending email is not implemented in this version of Email Management MCP.");
+            throw new InvalidOperationException("Email sending is disabled by configuration.");
+        }
+
+        if (request.To is null || request.To.Count == 0 || request.To.All(string.IsNullOrWhiteSpace))
+        {
+            return new OperationResult(false, "At least one recipient must be specified.");
+        }
+
+        if (string.IsNullOrEmpty(request.BodyText) && string.IsNullOrEmpty(request.BodyHtml))
+        {
+            return new OperationResult(false, "Email body cannot be empty.");
+        }
+
+        List<MailboxAccountOptions> accounts = configuration.GetSection(MailboxAccountOptions.SectionName).Get<List<MailboxAccountOptions>>() ?? [];
+        MailboxAccountOptions? account = accounts.FirstOrDefault(a => string.Equals(a.Id, mailboxId, StringComparison.OrdinalIgnoreCase))
+            ?? throw new KeyNotFoundException($"Mailbox with ID '{mailboxId}' was not found in configuration.");
+        if (!account.IsActive) throw new InvalidOperationException($"Mailbox with ID '{mailboxId}' is inactive in the configuration.");
+
+        MimeMessage message = new();
+
+        string senderName = !string.IsNullOrWhiteSpace(account.DisplayName) ? account.DisplayName : account.EmailAddress;
+        message.From.Add(new MailboxAddress(senderName, account.EmailAddress));
+
+        foreach (string to in request.To)
+        {
+            if (string.IsNullOrWhiteSpace(to)) continue;
+            if (!MailboxAddress.TryParse(to, out MailboxAddress? address))
+            {
+                return new OperationResult(false, $"Invalid recipient email address '{to}'.");
+            }
+            message.To.Add(address);
+        }
+
+        if (request.Cc is not null)
+        {
+            foreach (string cc in request.Cc)
+            {
+                if (string.IsNullOrWhiteSpace(cc)) continue;
+                if (!MailboxAddress.TryParse(cc, out MailboxAddress? address))
+                {
+                    return new OperationResult(false, $"Invalid CC recipient email address '{cc}'.");
+                }
+                message.Cc.Add(address);
+            }
+        }
+
+        if (request.Bcc is not null)
+        {
+            foreach (string bcc in request.Bcc)
+            {
+                if (string.IsNullOrWhiteSpace(bcc)) continue;
+                if (!MailboxAddress.TryParse(bcc, out MailboxAddress? address))
+                {
+                    return new OperationResult(false, $"Invalid BCC recipient email address '{bcc}'.");
+                }
+                message.Bcc.Add(address);
+            }
+        }
+
+        message.Subject = request.Subject ?? string.Empty;
+
+        BodyBuilder builder = new()
+        {
+            TextBody = request.BodyText ?? string.Empty
+        };
+        if (!string.IsNullOrWhiteSpace(request.BodyHtml))
+        {
+            builder.HtmlBody = request.BodyHtml;
+        }
+        message.Body = builder.ToMessageBody();
+
+        try
+        {
+            using ISmtpClient client = await smtpClientFactory.CreateConnectedClient(mailboxId, cancellationToken);
+            await client.SendAsync(message, cancellationToken);
+            await client.DisconnectAsync(true, cancellationToken);
+
+            logger.LogInformation(
+                "Successfully sent email from mailbox '{MailboxId}' to '{Recipients}' with subject '{Subject}'.",
+                mailboxId,
+                string.Join(", ", request.To),
+                message.Subject);
+
+            return new OperationResult(true, $"Email successfully sent to {string.Join(", ", request.To)}.");
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(
+                ex,
+                "Failed to send email via mailbox '{MailboxId}' to '{Recipients}' with subject '{Subject}'.",
+                mailboxId,
+                string.Join(", ", request.To),
+                message.Subject);
+
+            return new OperationResult(false, $"Failed to send email: {ex.Message}");
+        }
     }
 
     public async Task<OperationResult> CreateFolder(
