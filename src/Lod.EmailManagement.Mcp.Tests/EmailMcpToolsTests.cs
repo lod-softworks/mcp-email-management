@@ -1,5 +1,4 @@
 using FluentAssertions;
-using Lod.EmailManagement.Mcp.Mcp;
 using Lod.EmailManagement.Mcp.Models;
 using Lod.EmailManagement.Mcp.Services;
 using Moq;

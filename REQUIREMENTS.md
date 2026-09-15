@@ -4,14 +4,13 @@ Maintain this file as a living requirements and implementation document. Agents 
 
 ## Project Overview
 
-**Email Management MCP** is an ASP.NET Core Web API service that exposes a Model Context Protocol (MCP) server alongside standard RESTful endpoints. It enables autonomous AI agents and automated workflows to securely connect to, inspect, and organize email accounts via standardized tools and REST endpoints.
+**Email Management MCP** is an ASP.NET Core service that exposes a Model Context Protocol (MCP) server. It enables autonomous AI agents and automated workflows to securely connect to, inspect, and organize email accounts via standardized MCP tools.
 
 The service connects to email providers via **IMAP/SMTP** (using MailKit/MimeKit) and retrieves sensitive connection secrets (host configurations, credentials, passwords, tokens) securely from **Azure Key Vault**.
 
 ## Goals
 
-- **Agentic Workflow Enablement**: Expose structured, low-latency MCP tools over Server-Sent Events (SSE) so agents (Cursor, Claude, Copilot, custom agent runners) can inspect and manage emails in real time.
-- **Dual Surface**: Support both remote MCP protocol interactions (`/mcp/sse`, `/mcp/messages`) and standard REST endpoints (`/api/...`) for interoperability.
+- **Agentic Workflow Enablement**: Expose structured, low-latency MCP tools over Streamable HTTP and Server-Sent Events (SSE) so agents (Cursor, Claude, Copilot, custom agent runners) can inspect and manage emails in real time.
 - **Protocol Standardization**: Connect to standard email backends via IMAP (for retrieval, folder listing, moving, trashing) and SMTP (for eventual outgoing delivery).
 - **Safe Deletions (Soft Delete / Trash)**: Ensure item trashing always moves messages internally to the designated Trash/Deleted Items folder rather than permanently deleting them from the mail store.
 - **Secure Secrets Management**: Zero hardcoded credentials; all server details, access keys, and passwords are retrieved from Azure Key Vault using `DefaultAzureCredential` / Managed Identity.
@@ -21,7 +20,7 @@ The service connects to email providers via **IMAP/SMTP** (using MailKit/MimeKit
 
 - Direct POP3 protocol support (IMAP is strictly preferred).
 - Complex offline local message caching / database persistence (the service acts as a stateless gateway to the mail server).
-- Direct end-user client UI (web client or desktop UI); this is an API & MCP protocol gateway.
+- Direct end-user client UI (web client or desktop UI); this is an MCP protocol gateway.
 - Permanent hard-delete / expunge operations via agent tools.
 
 ---
@@ -32,13 +31,11 @@ The service connects to email providers via **IMAP/SMTP** (using MailKit/MimeKit
 flowchart TD
     subgraph Clients["Clients"]
         Agent["AI Agents (MCP Client)"]
-        HTTPClient["HTTP / REST Clients"]
     end
 
     subgraph Service["Lod.EmailManagement.Mcp (ASP.NET Core)"]
-        subgraph Surface["API & MCP Surface"]
-            MCPEndpoint["MCP Controller / SSE Endpoint (/mcp)"]
-            RESTEndpoint["REST API Controllers (/api)"]
+        subgraph Surface["MCP Surface"]
+            MCPEndpoint["MCP Endpoints (/mcp, /mcp/sse, /mcp/messages)"]
         end
 
         subgraph Core["Core Application Layer"]
@@ -58,11 +55,9 @@ flowchart TD
         MailServer["IMAP / SMTP Mail Server"]
     end
 
-    Agent -->|SSE / JSON-RPC| MCPEndpoint
-    HTTPClient -->|HTTP / JSON| RESTEndpoint
+    Agent -->|HTTP / SSE / JSON-RPC| MCPEndpoint
     MCPEndpoint --> ToolDispatcher
     ToolDispatcher --> MailboxService
-    RESTEndpoint --> MailboxService
     MailboxService --> ImapAdapter
     MailboxService --> SmtpAdapter
     ImapAdapter --> KeyVault
@@ -74,13 +69,12 @@ flowchart TD
 ### Component Breakdown
 
 1. **Host & Web Layer (`src/Lod.EmailManagement.Mcp`)**:
-   - ASP.NET Core Web API running on .NET LTS.
-   - Swagger / OpenAPI for REST endpoints.
-   - SSE and JSON-RPC 2.0 message handler for MCP clients.
+   - ASP.NET Core application running on .NET LTS.
+   - Streamable HTTP, SSE, and JSON-RPC 2.0 message handler for MCP clients.
 2. **MCP Integration Layer**:
    - Implements the Model Context Protocol specification powered by the official `ModelContextProtocol.AspNetCore` SDK.
    - Discovers and exposes tools via `[McpServerToolType]` and `[McpServerTool]` (`EmailMcpTools`).
-   - Supports Streamable HTTP / SSE transport via `app.MapMcp("/mcp")` protected by API key authentication.
+   - Supports Streamable HTTP / SSE transport via `app.MapMcp("/mcp")` and `/mcp/sse` protected by API key authentication.
 3. **Domain & Services Layer**:
    - `IMailboxService`: Core orchestration interface handling mailbox, folder, and item operations.
    - High-level business logic for folder resolution (e.g. resolving special folders like `Trash`, `Inbox`, `Sent`).
@@ -99,25 +93,21 @@ flowchart TD
 
 - **List Mailboxes**:
   - MCP Tool: `list_mailboxes`
-  - REST: `GET /api/mailboxes`
   - Returns: Array of configured mailbox profiles (id, display name, email address, incoming server type).
 
 ### 2. Folder Operations
 
 - **List Mailbox Folders**:
   - MCP Tool: `list_folders(mailbox_id)`
-  - REST: `GET /api/mailboxes/{mailboxId}/folders`
   - Returns: Folder tree hierarchy with metadata (id, name, path, attributes like `\\Inbox`, `\\Trash`, `\\Sent`, unread count, total item count).
 
 ### 3. Folder Item Operations
 
 - **List Folder Items**:
   - MCP Tool: `list_folder_items(mailbox_id, folder_id, limit, offset, unread_only)`
-  - REST: `GET /api/mailboxes/{mailboxId}/folders/{folderId}/items?limit=50&offset=0&unreadOnly=false`
   - Returns: Paginated list of message headers / summary items (item id, subject, sender, recipients, date received, size, read/flagged status).
 - **Get Item (Full Message)**:
   - MCP Tool: `get_item(mailbox_id, folder_id, item_id, include_body_html)`
-  - REST: `GET /api/mailboxes/{mailboxId}/folders/{folderId}/items/{itemId}?includeBodyHtml=true`
   - Returns: Full email representation:
     - Headers (Subject, From, To, Cc, Bcc, Reply-To, Date, Message-ID)
     - Body (Plain text body, optional HTML body, snippet)
@@ -128,19 +118,15 @@ flowchart TD
 
 - **Move Item**:
   - MCP Tool: `move_item(mailbox_id, source_folder_id, target_folder_id, item_id)`
-  - REST: `POST /api/mailboxes/{mailboxId}/folders/{sourceFolderId}/items/{itemId}/move`
-  - Body / Arguments: `{ "targetFolderId": "..." }`
   - Behavior: Relocates message to the target folder using IMAP `MOVE` (or copy + delete flag + expunge fallback).
 - **Trash Item**:
   - MCP Tool: `trash_item(mailbox_id, folder_id, item_id)`
-  - REST: `POST /api/mailboxes/{mailboxId}/folders/{folderId}/items/{itemId}/trash` (and `DELETE /api/mailboxes/{mailboxId}/folders/{folderId}/items/{itemId}`)
   - Behavior:
     - Locates the mailbox's designated Trash folder based on IMAP folder attributes (`SpecialFolder.Trash` / `FolderAttributes.Trash`).
     - If already in Trash, returns a friendly error or no-op (cannot trash an item already in trash).
     - Moves the item to the Trash folder internally.
 - **Archive Item**:
   - MCP Tool: `archive_item(mailbox_id, folder_id, item_id)`
-  - REST: `POST /api/mailboxes/{mailboxId}/folders/{folderId}/items/{itemId}/archive`
   - Behavior:
     - Locates the mailbox's designated Archive folder based on IMAP folder attributes (`SpecialFolder.Archive` / `FolderAttributes.Archive`).
     - If already in Archive, returns a friendly error or no-op (cannot archive an item already in archive).
@@ -150,11 +136,9 @@ flowchart TD
 
 - **Send Email**:
   - MCP Tool: `send_email(mailbox_id, to, subject, body_text, body_html?, cc?, bcc?)`
-  - REST: `POST /api/mailboxes/{mailboxId}/send`
-  - Body: `{ "to": ["..."], "subject": "...", "bodyText": "...", "bodyHtml": "...", "cc": [...], "bcc": [...] }`
   - Behavior:
     - Logs a warning with the mailbox ID, recipient list, and subject line.
-    - Intentionally throws `System.NotImplementedException` (returning HTTP 501 Not Implemented or MCP error) until full SMTP delivery is enabled.
+    - Intentionally throws `System.NotImplementedException` (returning an MCP tool error) until full SMTP delivery is enabled.
 
 ---
 
@@ -193,10 +177,10 @@ In local development and non-vault environments, passwords can be declared in a 
 
 ### Client-Facing Authentication
 
-All client-facing endpoints (`/mcp/sse`, `/mcp/messages`, and `/api/...`) enforce API key authentication:
+All MCP endpoints (`/mcp`, `/mcp/sse`, `/mcp/messages`) enforce API key authentication:
 
 - **Supported Token Passing Mechanisms**:
-  - `X-API-Key: <token>` header (standard API clients).
+  - `X-API-Key: <token>` header.
   - `Authorization: Bearer <token>` or `Authorization: ApiKey <token>` header.
   - `?apiKey=<token>` or `?api_key=<token>` query string (vital for browser/client `EventSource` connections unable to send custom headers).
 - **Validation & Performance**:
@@ -262,9 +246,6 @@ public record class EmailAttachmentMetadata(
     string FileName,
     string ContentType,
     long SizeInBytes);
-
-public record class MoveItemRequest(
-    string TargetFolderId);
 
 public record class OperationResult(
     bool Success,

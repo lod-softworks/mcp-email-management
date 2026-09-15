@@ -1,9 +1,8 @@
 using System.ComponentModel;
 using Lod.EmailManagement.Mcp.Models;
-using Lod.EmailManagement.Mcp.Services;
 using ModelContextProtocol.Server;
 
-namespace Lod.EmailManagement.Mcp.Mcp;
+namespace Lod.EmailManagement.Mcp.Services;
 
 [McpServerToolType]
 public class EmailMcpTools(IMailboxService mailboxService)

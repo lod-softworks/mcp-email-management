@@ -1,9 +1,7 @@
 using Lod.EmailManagement.Mcp.Authentication;
 using Lod.EmailManagement.Mcp.Configuration;
-using Lod.EmailManagement.Mcp.Mcp;
 using Lod.EmailManagement.Mcp.Services;
 using Microsoft.AspNetCore.Authentication;
-using Scalar.AspNetCore;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
@@ -28,29 +26,14 @@ builder.Services.AddMcpServer()
     .WithHttpTransport()
     .WithTools<EmailMcpTools>();
 
-builder.Services.AddSingleton<McpSessionManager>();
-builder.Services.AddScoped<IMcpToolHandler, EmailMcpToolHandler>();
-
-// Controllers & OpenAPI
-builder.Services.AddControllers();
-builder.Services.AddOpenApi();
-
 WebApplication app = builder.Build();
-
-if (app.Environment.IsDevelopment())
-{
-    app.MapOpenApi();
-    app.MapScalarApiReference();
-    app.MapGet("", () => Results.Redirect("/scalar"));
-}
 
 app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
 
-app.MapControllers();
-app.MapMcp("/mcp").RequireAuthorization();
-app.MapMcpEndpoints();
+app.MapMcp("/mcp")
+    .RequireAuthorization();
 
 await app.RunAsync();
 

@@ -1,12 +1,10 @@
 # Email Management MCP
 
-An ASP.NET Core API providing a dual Model Context Protocol (MCP) and REST interface for autonomous AI agents and automated workflows to interact with email mailboxes, folders, and messages.
+An ASP.NET Core service providing a Model Context Protocol (MCP) server for autonomous AI agents and automated workflows to interact with email mailboxes, folders, and messages.
 
 ## Features
 
-- **Dual Surface (MCP & REST)**:
-  - **MCP Server**: Powered by the official [`ModelContextProtocol.AspNetCore`](https://www.nuget.org/packages/ModelContextProtocol.AspNetCore) SDK for Streamable HTTP / SSE transport.
-  - **REST API**: Standard HTTP endpoints with interactive [Scalar](https://github.com/scalar/scalar) API documentation (`/scalar/v1`) for direct service integration.
+- **MCP Server**: Powered by the official [`ModelContextProtocol.AspNetCore`](https://www.nuget.org/packages/ModelContextProtocol.AspNetCore) SDK for Streamable HTTP / SSE transport.
 - **IMAP / SMTP Support**: Standardized communication with email providers (Office 365, Gmail, custom email hosts) powered by [MailKit](https://github.com/jstedfast/MailKit).
 - **Mailbox & Folder Navigation**: List configured mailboxes, discover folder hierarchies, and inspect unread/total message counts.
 - **Message Inspection & Organization**:
@@ -33,21 +31,6 @@ When connected via an MCP client, the following tools are exposed:
 | `trash_item` | `mailbox_id`, `folder_id`, `item_id` | Moves an email message to the mailbox's designated Trash folder. |
 | `archive_item` | `mailbox_id`, `folder_id`, `item_id` | Moves an email message to the mailbox's designated Archive folder. |
 | `send_email` | `mailbox_id`, `to`, `subject`, `body_text`, `body_html?`, `cc?`, `bcc?` | Sends an email (currently logs attempt and throws `NotImplementedException`). |
-
----
-
-## REST Endpoints
-
-The service also exposes standard REST endpoints:
-
-- `GET /api/mailboxes` — List mailboxes
-- `GET /api/mailboxes/{mailboxId}/folders` — List folders
-- `GET /api/mailboxes/{mailboxId}/folders/{folderId}/items` — List items in a folder
-- `GET /api/mailboxes/{mailboxId}/folders/{folderId}/items/{itemId}` — Get email details
-- `POST /api/mailboxes/{mailboxId}/folders/{sourceFolderId}/items/{itemId}/move` — Move an item
-- `POST /api/mailboxes/{mailboxId}/folders/{folderId}/items/{itemId}/trash` — Trash an item (or `DELETE`)
-- `POST /api/mailboxes/{mailboxId}/folders/{folderId}/items/{itemId}/archive` — Archive an item
-- `POST /api/mailboxes/{mailboxId}/send` — Send an email (logs attempt and returns 501 / throws `NotImplementedException`)
 
 ---
 
@@ -101,7 +84,7 @@ Authentication to Azure Key Vault is handled via `Azure.Identity.DefaultAzureCre
 
 ## Client Authentication
 
-All API and MCP endpoints require an authorized API key. You can pass the key in three ways:
+All MCP endpoints require an authorized API key. You can pass the key in three ways:
 
 1. **Header**: `X-API-Key: <your-api-key>`
 2. **Authorization Header**: `Authorization: Bearer <your-api-key>`
@@ -160,8 +143,6 @@ export AZURE_KEYVAULT_URI="https://<your-vault-name>.vault.azure.net/"
 # Run the API
 dotnet run --project src/Lod.EmailManagement.Mcp
 ```
-
-Navigate to `http://localhost:5000/scalar/v1` to inspect and test the REST endpoints via the interactive Scalar API reference (OpenAPI specification available at `/openapi/v1.json`).
 
 ---
 
