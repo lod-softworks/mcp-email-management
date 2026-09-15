@@ -184,8 +184,8 @@ In local development and non-vault environments, passwords can be declared in a 
 ```json
 {
   "Passwords": {
-    "primary": "asdfasdf",
-    "support": "woah"
+    "personal": "asdfasdf",
+    "work": "woah"
   }
 }
 ```
