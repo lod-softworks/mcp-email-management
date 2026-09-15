@@ -44,49 +44,102 @@ When connected via an MCP client, the following tools are exposed:
 
 ## Configuration & Azure Key Vault
 
-The service reads sensitive configuration from Azure Key Vault. Set the Key Vault URI in your environment or `appsettings.json`:
+The application follows the security practice of storing application settings in configuration files (`appsettings.json`) while delegating all secrets—such as email passwords and MCP client API keys—to **Azure Key Vault** (or User Secrets in local development).
+
+### Application Settings (`appsettings.json`)
+
+Non-sensitive configuration (Key Vault endpoint, logging, and mailbox server connection details) is defined in `appsettings.json`. Passwords and API keys are intentionally omitted:
 
 ```json
 {
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning"
+    }
+  },
+  "AllowedHosts": "*",
   "KeyVault": {
     "VaultUri": "https://<your-key-vault-name>.vault.azure.net/"
-  }
+  },
+  "Mailboxes": [
+    {
+      "Id": "primary",
+      "DisplayName": "Primary Work Email",
+      "EmailAddress": "agent@example.com",
+      "ImapHost": "imap.example.com",
+      "ImapPort": 993,
+      "ImapUseSsl": true,
+      "SmtpHost": "smtp.example.com",
+      "SmtpPort": 587,
+      "SmtpUseSsl": true,
+      "Username": "agent@example.com",
+      "IsActive": true
+    },
+    {
+      "Id": "support",
+      "DisplayName": "Support Inbox",
+      "EmailAddress": "support@example.com",
+      "ImapHost": "imap.example.com",
+      "ImapPort": 993,
+      "ImapUseSsl": true,
+      "SmtpHost": "smtp.example.com",
+      "SmtpPort": 587,
+      "SmtpUseSsl": true,
+      "Username": "support@example.com",
+      "IsActive": true
+    }
+  ]
 }
 ```
 
-Or set the environment variable:
+The Key Vault URI can also be configured via the `AZURE_KEYVAULT_URI` environment variable:
 ```bash
-AZURE_KEYVAULT_URI=https://<your-key-vault-name>.vault.azure.net/
+export AZURE_KEYVAULT_URI="https://<your-key-vault-name>.vault.azure.net/"
 ```
 
-### Key Vault Secrets Layout & Email Passwords
+### Secrets in Azure Key Vault
 
-Store mailbox connection credentials, email passwords, and client API keys with the hierarchical format:
+All sensitive values—specifically **client API keys** and **mailbox passwords**—are stored securely in Azure Key Vault. In ASP.NET Core, double-dash delimiters (`--`) in Key Vault secret names automatically map to hierarchical configuration keys (`:`).
 
-- `Passwords--<sanitized-email>` or `<sanitized-email>` — Dedicated email password independently named in Key Vault (e.g. `Passwords--email1-firstdomain-net` or `email1-firstdomain-net`). Key Vault only allows alphanumeric characters and hyphens, so characters like `@` and `.` are converted to `-`.
-- `ApiKeys` — JSON array (`["key1", "key2"]`) or comma-separated list of authorized client API keys
-- `ApiKeys--<index>` — Individual indexed authorized API key (e.g. `ApiKeys--0`)
-- `Mailboxes--<mailbox-id>--ImapHost` — e.g. `imap.example.com`
-- `Mailboxes--<mailbox-id>--ImapPort` — e.g. `993`
-- `Mailboxes--<mailbox-id>--ImapSsl` — e.g. `SslOnConnect`
-- `Mailboxes--<mailbox-id>--SmtpHost` — e.g. `smtp.example.com`
-- `Mailboxes--<mailbox-id>--SmtpPort` — e.g. `587`
-- `Mailboxes--<mailbox-id>--SmtpSsl` — e.g. `true` or `Auto`
-- `Mailboxes--<mailbox-id>--Username` — e.g. `agent@example.com`
-- `Mailboxes--<mailbox-id>--Password` — Fallback secret password or app password
+#### Key Vault Secret Naming & Examples
 
-In local settings (`appsettings.json` or User Secrets), email passwords can be independently declared in their own `Passwords` section:
+| Secret Type | Key Vault Secret Name Pattern | Example Secret Name | Example Value | Description |
+|-------------|-------------------------------|---------------------|---------------|-------------|
+| **Client API Key** | `Authentication--ApiKeys--<index>` | `Authentication--ApiKeys--0` | `lod-agent-key-abcdef123456` | Authorized API key for MCP clients connecting to `/mcp`. |
+| **Mailbox Password** | `Passwords--<mailbox-id>` | `Passwords--primary` | `my-secure-email-password` | Password matching the mailbox's `Id` in `appsettings.json`. |
+| **Mailbox Password (Email Fallback)** | `Passwords--<sanitized-email>` | `Passwords--agent-example-com` | `my-secure-email-password` | Dedicated email password (characters like `@` and `.` converted to `-`). |
 
-```json
-{
-  "Passwords": {
-    "email1@firstdomain.net": "asdfasdf",
-    "second-email@diffdomain.com": "woah"
-  }
-}
+#### Azure CLI Examples
+
+Use the Azure CLI to provision your secrets directly into your vault:
+
+```bash
+# Store client API keys for AI agent authentication
+az keyvault secret set --vault-name "<your-key-vault-name>" \
+  --name "Authentication--ApiKeys--0" \
+  --value "lod-agent-key-abcdef123456"
+
+# Store mailbox passwords mapped to mailbox Ids defined in appsettings.json
+az keyvault secret set --vault-name "<your-key-vault-name>" \
+  --name "Passwords--primary" \
+  --value "app-specific-password-for-primary"
+
+az keyvault secret set --vault-name "<your-key-vault-name>" \
+  --name "Passwords--support" \
+  --value "app-specific-password-for-support"
 ```
 
 Authentication to Azure Key Vault is handled via `Azure.Identity.DefaultAzureCredential`, supporting Azure CLI (`az login`), environment credentials, Visual Studio credentials, and Azure Managed Identity in production.
+
+#### Local Development (User Secrets)
+
+For local development without an active Azure Key Vault connection, you can store passwords and API keys safely in [.NET User Secrets](https://learn.microsoft.com/aspnet/core/security/app-secrets) without committing them to git:
+
+```bash
+dotnet user-secrets set "Authentication:ApiKeys:0" "dev-api-key-12345" --project src/Lod.EmailManagement.Mcp
+dotnet user-secrets set "Passwords:primary" "local-dev-password" --project src/Lod.EmailManagement.Mcp
+```
 
 ---
 
