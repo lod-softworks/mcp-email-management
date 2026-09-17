@@ -12,6 +12,7 @@ An ASP.NET Core service providing a Model Context Protocol (MCP) server for auto
 - **Message Inspection & Organization**:
   - Fetch message summaries with pagination and unread filters.
   - Retrieve full email details including plain text, HTML bodies, headers, and attachment metadata.
+  - Download file attachments via MCP tool (`download_attachment`) or direct authenticated HTTP binary streaming.
   - Move messages between folders.
   - Safely trash or archive messages (automatically resolves designated Trash and Archive folders and moves them internally).
   - Update message status by marking emails as read/unread and flagged/unflagged.
