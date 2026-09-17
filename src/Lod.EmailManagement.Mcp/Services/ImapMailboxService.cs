@@ -30,6 +30,13 @@ public interface IMailboxService
         bool includeBodyHtml = true,
         CancellationToken cancellationToken = default);
 
+    Task<EmailAttachmentContent?> GetAttachment(
+        string mailboxId,
+        string folderId,
+        string itemId,
+        string attachmentId,
+        CancellationToken cancellationToken = default);
+
     Task<OperationResult> MoveItem(
         string mailboxId,
         string sourceFolderId,
@@ -210,6 +217,7 @@ public class ImapMailboxService(
         List<EmailAddress> bcc = message.Bcc.Mailboxes.Select(m => new EmailAddress(m.Address, m.Name)).ToList();
 
         List<EmailAttachmentMetadata> attachments = [];
+        int attachmentIndex = 0;
         foreach (MimeEntity attachment in message.Attachments)
         {
             string fileName = attachment.ContentDisposition?.FileName
@@ -222,11 +230,17 @@ public class ImapMailboxService(
                 attachmentSize = part.Content.Stream.Length;
             }
 
+            string attachmentId = !string.IsNullOrWhiteSpace(attachment.ContentId)
+                ? attachment.ContentId.Trim('<', '>')
+                : attachmentIndex.ToString();
+
             attachments.Add(new EmailAttachmentMetadata(
-                attachment.ContentId ?? Guid.NewGuid().ToString(),
+                attachmentId,
                 fileName,
                 contentType,
                 attachmentSize));
+
+            attachmentIndex++;
         }
 
         // Check flags
@@ -247,6 +261,119 @@ public class ImapMailboxService(
             isRead,
             isFlagged,
             attachments);
+    }
+
+    public async Task<EmailAttachmentContent?> GetAttachment(
+        string mailboxId,
+        string folderId,
+        string itemId,
+        string attachmentId,
+        CancellationToken cancellationToken = default)
+    {
+        using IImapClient client = await clientFactory.CreateConnectedClient(mailboxId, cancellationToken);
+        IMailFolder folder = await client.GetFolderAsync(folderId, cancellationToken);
+        await folder.OpenAsync(FolderAccess.ReadOnly, cancellationToken);
+
+        if (!UniqueId.TryParse(itemId, out UniqueId uid))
+        {
+            logger.LogWarning("Invalid UniqueId '{ItemId}' requested for folder '{FolderId}' in mailbox '{MailboxId}'", itemId, folderId, mailboxId);
+            return null;
+        }
+
+        MimeMessage message = await folder.GetMessageAsync(uid, cancellationToken);
+        if (message is null)
+        {
+            return null;
+        }
+
+        MimeEntity? matchedEntity = null;
+        string resolvedId = attachmentId;
+        List<MimeEntity> attachmentList = message.Attachments.ToList();
+
+        // 1. Try matching by index if attachmentId is an integer
+        if (int.TryParse(attachmentId, out int targetIndex) && targetIndex >= 0 && targetIndex < attachmentList.Count)
+        {
+            matchedEntity = attachmentList[targetIndex];
+            resolvedId = targetIndex.ToString();
+        }
+
+        // 2. Try matching by ContentId (exact or trimmed of '<' and '>')
+        if (matchedEntity is null)
+        {
+            for (int i = 0; i < attachmentList.Count; i++)
+            {
+                MimeEntity entity = attachmentList[i];
+                if (!string.IsNullOrWhiteSpace(entity.ContentId))
+                {
+                    string trimmedCid = entity.ContentId.Trim('<', '>');
+                    if (string.Equals(entity.ContentId, attachmentId, StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(trimmedCid, attachmentId, StringComparison.OrdinalIgnoreCase))
+                    {
+                        matchedEntity = entity;
+                        resolvedId = trimmedCid;
+                        break;
+                    }
+                }
+            }
+        }
+
+        // 3. Try matching by file name
+        if (matchedEntity is null)
+        {
+            for (int i = 0; i < attachmentList.Count; i++)
+            {
+                MimeEntity entity = attachmentList[i];
+                string? fileName = entity.ContentDisposition?.FileName ?? entity.ContentType?.Name;
+                if (!string.IsNullOrWhiteSpace(fileName) && string.Equals(fileName, attachmentId, StringComparison.OrdinalIgnoreCase))
+                {
+                    matchedEntity = entity;
+                    resolvedId = !string.IsNullOrWhiteSpace(entity.ContentId) ? entity.ContentId.Trim('<', '>') : i.ToString();
+                    break;
+                }
+            }
+        }
+
+        if (matchedEntity is null)
+        {
+            logger.LogWarning("Attachment '{AttachmentId}' not found for message '{ItemId}' in folder '{FolderId}', mailbox '{MailboxId}'",
+                attachmentId, itemId, folderId, mailboxId);
+            return null;
+        }
+
+        string resolvedFileName = matchedEntity.ContentDisposition?.FileName
+            ?? matchedEntity.ContentType?.Name
+            ?? "attachment";
+        string resolvedContentType = matchedEntity.ContentType?.MimeType ?? "application/octet-stream";
+
+        using MemoryStream memoryStream = new();
+        if (matchedEntity is MimePart mimePart)
+        {
+            if (mimePart.Content is not null)
+            {
+                await mimePart.Content.DecodeToAsync(memoryStream, cancellationToken);
+            }
+        }
+        else if (matchedEntity is MessagePart messagePart)
+        {
+            if (messagePart.Message is not null)
+            {
+                await messagePart.Message.WriteToAsync(memoryStream, cancellationToken);
+            }
+        }
+        else
+        {
+            await matchedEntity.WriteToAsync(memoryStream, cancellationToken);
+        }
+
+        byte[] contentBytes = memoryStream.ToArray();
+        string contentBase64 = Convert.ToBase64String(contentBytes);
+
+        return new EmailAttachmentContent(
+            resolvedId,
+            resolvedFileName,
+            resolvedContentType,
+            contentBytes.LongLength,
+            contentBase64);
     }
 
     public async Task<OperationResult> MoveItem(

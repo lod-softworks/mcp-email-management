@@ -231,4 +231,27 @@ public class EmailMcpToolsTests
 
         result.Should().Be(expected);
     }
+
+    [Fact]
+    public async Task DownloadAttachmentCallsService()
+    {
+        EmailAttachmentContent expected = new("0", "report.pdf", "application/pdf", 1024, "AQIDBA==");
+        _mailboxServiceMock.Setup(s => s.GetAttachment("work", "INBOX", "100", "0", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(expected);
+
+        EmailAttachmentContent? result = await _tools.DownloadAttachment("work", "INBOX", "100", "0");
+
+        result.Should().BeEquivalentTo(expected);
+    }
+
+    [Fact]
+    public async Task DownloadAttachmentReturnsNullWhenNotFound()
+    {
+        _mailboxServiceMock.Setup(s => s.GetAttachment("work", "INBOX", "100", "99", It.IsAny<CancellationToken>()))
+            .ReturnsAsync((EmailAttachmentContent?)null);
+
+        EmailAttachmentContent? result = await _tools.DownloadAttachment("work", "INBOX", "100", "99");
+
+        result.Should().BeNull();
+    }
 }

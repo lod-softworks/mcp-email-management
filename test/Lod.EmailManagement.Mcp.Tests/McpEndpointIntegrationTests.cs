@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 using MimeKit;
 using Moq;
 using Lod.EmailManagement.Mcp.Configuration;
+using Lod.EmailManagement.Mcp.Models;
 using Lod.EmailManagement.Mcp.Services;
 
 namespace Lod.EmailManagement.Mcp.Tests;
@@ -93,6 +94,7 @@ public class McpEndpointIntegrationTests : IClassFixture<WebApplicationFactory<P
         content.Should().Contain("list_folders");
         content.Should().Contain("list_folder_items");
         content.Should().Contain("get_item");
+        content.Should().Contain("download_attachment");
         content.Should().Contain("move_item");
         content.Should().Contain("trash_item");
         content.Should().Contain("archive_item");
@@ -382,5 +384,114 @@ public class McpEndpointIntegrationTests : IClassFixture<WebApplicationFactory<P
         string content = await response.Content.ReadAsStringAsync();
         content.Should().Contain("Email successfully sent");
         smtpClientMock.Verify(c => c.SendAsync(It.IsAny<MimeMessage>(), It.IsAny<CancellationToken>(), null), Times.Once);
+    }
+
+    [Fact]
+    public async Task McpEndpointHandlesToolsCallDownloadAttachment()
+    {
+        Mock<IMailboxService> mailboxServiceMock = new();
+        EmailAttachmentContent attachment = new("0", "sample.pdf", "application/pdf", 4, "AQIDBA==");
+        mailboxServiceMock.Setup(s => s.GetAttachment("primary", "INBOX", "42", "0", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(attachment);
+
+        WebApplicationFactory<Program> customFactory = _factory.WithWebHostBuilder(builder =>
+        {
+            builder.ConfigureServices(services =>
+            {
+                services.AddScoped<IMailboxService>(_ => mailboxServiceMock.Object);
+            });
+        });
+
+        HttpClient client = customFactory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-API-Key", "dev-api-key-12345");
+        client.DefaultRequestHeaders.Add("Accept", "application/json, text/event-stream");
+
+        string callJson = """
+        {
+            "jsonrpc": "2.0",
+            "id": 25,
+            "method": "tools/call",
+            "params": {
+                "name": "download_attachment",
+                "arguments": {
+                    "mailboxId": "primary",
+                    "folderId": "INBOX",
+                    "itemId": "42",
+                    "attachmentId": "0"
+                }
+            }
+        }
+        """;
+
+        HttpResponseMessage response = await client.PostAsync("/mcp", new StringContent(callJson, System.Text.Encoding.UTF8, "application/json"));
+
+        response.IsSuccessStatusCode.Should().BeTrue();
+        string content = await response.Content.ReadAsStringAsync();
+        content.Should().Contain("sample.pdf");
+        content.Should().Contain("application/pdf");
+        content.Should().Contain("AQIDBA==");
+    }
+
+    [Fact]
+    public async Task HttpAttachmentDownloadEndpointRequiresAuthorization()
+    {
+        HttpClient client = _factory.CreateClient();
+
+        HttpResponseMessage response = await client.GetAsync("/api/attachments/download?mailboxId=work&folderId=INBOX&itemId=1&attachmentId=0");
+
+        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
+
+    [Fact]
+    public async Task HttpAttachmentDownloadEndpointReturnsNotFoundWhenAttachmentMissing()
+    {
+        Mock<IMailboxService> mailboxServiceMock = new();
+        mailboxServiceMock.Setup(s => s.GetAttachment("work", "INBOX", "1", "99", It.IsAny<CancellationToken>()))
+            .ReturnsAsync((EmailAttachmentContent?)null);
+
+        WebApplicationFactory<Program> customFactory = _factory.WithWebHostBuilder(builder =>
+        {
+            builder.ConfigureServices(services =>
+            {
+                services.AddScoped<IMailboxService>(_ => mailboxServiceMock.Object);
+            });
+        });
+
+        HttpClient client = customFactory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-API-Key", "dev-api-key-12345");
+
+        HttpResponseMessage response = await client.GetAsync("/api/attachments/download?mailboxId=work&folderId=INBOX&itemId=1&attachmentId=99");
+
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task HttpAttachmentDownloadEndpointStreamsFileWhenFound()
+    {
+        byte[] expectedBytes = [1, 2, 3, 4, 5];
+        Mock<IMailboxService> mailboxServiceMock = new();
+        EmailAttachmentContent attachment = new("0", "report.pdf", "application/pdf", expectedBytes.Length, Convert.ToBase64String(expectedBytes));
+        mailboxServiceMock.Setup(s => s.GetAttachment("work", "INBOX", "10", "0", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(attachment);
+
+        WebApplicationFactory<Program> customFactory = _factory.WithWebHostBuilder(builder =>
+        {
+            builder.ConfigureServices(services =>
+            {
+                services.AddScoped<IMailboxService>(_ => mailboxServiceMock.Object);
+            });
+        });
+
+        HttpClient client = customFactory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-API-Key", "dev-api-key-12345");
+
+        HttpResponseMessage response = await client.GetAsync("/api/attachments/download?mailboxId=work&folderId=INBOX&itemId=10&attachmentId=0");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        response.Content.Headers.ContentType?.MediaType.Should().Be("application/pdf");
+        response.Content.Headers.ContentDisposition?.FileName.Should().Be("report.pdf");
+
+        byte[] downloadedBytes = await response.Content.ReadAsByteArrayAsync();
+        downloadedBytes.Should().Equal(expectedBytes);
     }
 }

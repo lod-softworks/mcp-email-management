@@ -44,6 +44,17 @@ public class EmailMcpTools(IMailboxService mailboxService)
         return await mailboxService.GetItem(mailboxId, folderId, itemId, includeBodyHtml, cancellationToken);
     }
 
+    [McpServerTool, Description("Downloads an email attachment by ID or file name, returning its metadata and base64 encoded content.")]
+    public async Task<EmailAttachmentContent?> DownloadAttachment(
+        [Description("The mailbox ID.")] string mailboxId,
+        [Description("The folder path or ID.")] string folderId,
+        [Description("The email message unique ID.")] string itemId,
+        [Description("The attachment ID or file name.")] string attachmentId,
+        CancellationToken cancellationToken = default)
+    {
+        return await mailboxService.GetAttachment(mailboxId, folderId, itemId, attachmentId, cancellationToken);
+    }
+
     [McpServerTool, Description("Moves an email message from a source folder to a target folder.")]
     public async Task<OperationResult> MoveItem(
         [Description("The mailbox ID.")] string mailboxId,
