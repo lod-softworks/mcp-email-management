@@ -1,4 +1,6 @@
 using FluentAssertions;
+using MailKit;
+using MailKit.Net.Imap;
 using MailKit.Net.Smtp;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -291,5 +293,107 @@ public class ImapMailboxServiceTests
 
         result.Success.Should().BeFalse();
         result.Message.Should().Contain("Invalid item UniqueId");
+    }
+
+    [Fact]
+    public async Task GetAttachmentReturnsNullWhenItemIdIsInvalid()
+    {
+        Mock<IImapClient> imapClientMock = new();
+        Mock<IMailFolder> folderMock = new();
+        folderMock.Setup(f => f.OpenAsync(FolderAccess.ReadOnly, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(FolderAccess.ReadOnly);
+        imapClientMock.Setup(c => c.GetFolderAsync("INBOX", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(folderMock.Object);
+        _clientFactoryMock.Setup(f => f.CreateConnectedClient("work", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(imapClientMock.Object);
+
+        IConfiguration config = new ConfigurationBuilder().Build();
+        ImapMailboxService service = CreateService(config);
+
+        EmailAttachmentContent? result = await service.GetAttachment("work", "INBOX", "invalid-uid", "0");
+
+        result.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task GetAttachmentRetrievesAttachmentByIndexAndFileName()
+    {
+        MimeMessage message = new();
+        message.Subject = "Test Attachment";
+        BodyBuilder builder = new();
+        builder.TextBody = "Body text";
+        byte[] docBytes = [10, 20, 30, 40];
+        byte[] imgBytes = [1, 2, 3, 4, 5];
+        builder.Attachments.Add("document.pdf", docBytes, new ContentType("application", "pdf"));
+        builder.Attachments.Add("photo.png", imgBytes, new ContentType("image", "png"));
+        message.Body = builder.ToMessageBody();
+
+        Mock<IImapClient> imapClientMock = new();
+        Mock<IMailFolder> folderMock = new();
+        folderMock.Setup(f => f.OpenAsync(FolderAccess.ReadOnly, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(FolderAccess.ReadOnly);
+        folderMock.Setup(f => f.GetMessageAsync(new UniqueId(42), It.IsAny<CancellationToken>(), null))
+            .ReturnsAsync(message);
+        imapClientMock.Setup(c => c.GetFolderAsync("INBOX", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(folderMock.Object);
+        _clientFactoryMock.Setup(f => f.CreateConnectedClient("work", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(imapClientMock.Object);
+
+        IConfiguration config = new ConfigurationBuilder().Build();
+        ImapMailboxService service = CreateService(config);
+
+        // Fetch first attachment by index
+        EmailAttachmentContent? attachment0 = await service.GetAttachment("work", "INBOX", "42", "0");
+        attachment0.Should().NotBeNull();
+        attachment0!.FileName.Should().Be("document.pdf");
+        attachment0.ContentType.Should().Be("application/pdf");
+        attachment0.ContentBase64.Should().Be(Convert.ToBase64String(docBytes));
+
+        // Fetch second attachment by filename
+        EmailAttachmentContent? attachment1 = await service.GetAttachment("work", "INBOX", "42", "photo.png");
+        attachment1.Should().NotBeNull();
+        attachment1!.FileName.Should().Be("photo.png");
+        attachment1.ContentType.Should().Be("image/png");
+        attachment1.ContentBase64.Should().Be(Convert.ToBase64String(imgBytes));
+
+        // Fetch non-existent attachment
+        EmailAttachmentContent? notFound = await service.GetAttachment("work", "INBOX", "42", "nonexistent.txt");
+        notFound.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task GetItemAssignsDeterministicAttachmentIds()
+    {
+        MimeMessage message = new();
+        message.Subject = "Test Attachment Metadata";
+        BodyBuilder builder = new();
+        builder.TextBody = "Body text";
+        builder.Attachments.Add("document.pdf", [1, 2, 3], new ContentType("application", "pdf"));
+        builder.Attachments.Add("photo.png", [4, 5, 6], new ContentType("image", "png"));
+        message.Body = builder.ToMessageBody();
+
+        Mock<IImapClient> imapClientMock = new();
+        Mock<IMailFolder> folderMock = new();
+        folderMock.Setup(f => f.OpenAsync(FolderAccess.ReadOnly, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(FolderAccess.ReadOnly);
+        folderMock.Setup(f => f.GetMessageAsync(new UniqueId(42), It.IsAny<CancellationToken>(), null))
+            .ReturnsAsync(message);
+        folderMock.Setup(f => f.FetchAsync(It.IsAny<IList<UniqueId>>(), It.IsAny<IFetchRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<IMessageSummary>());
+        imapClientMock.Setup(c => c.GetFolderAsync("INBOX", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(folderMock.Object);
+        _clientFactoryMock.Setup(f => f.CreateConnectedClient("work", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(imapClientMock.Object);
+
+        IConfiguration config = new ConfigurationBuilder().Build();
+        ImapMailboxService service = CreateService(config);
+
+        EmailDetail? item = await service.GetItem("work", "INBOX", "42");
+        item.Should().NotBeNull();
+        item!.Attachments.Should().HaveCount(2);
+        item.Attachments[0].Id.Should().Be("0");
+        item.Attachments[0].FileName.Should().Be("document.pdf");
+        item.Attachments[1].Id.Should().Be("1");
+        item.Attachments[1].FileName.Should().Be("photo.png");
     }
 }

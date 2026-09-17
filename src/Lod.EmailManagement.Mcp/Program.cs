@@ -1,6 +1,7 @@
 using Azure.Identity;
 using Lod.EmailManagement.Mcp.Authentication;
 using Lod.EmailManagement.Mcp.Configuration;
+using Lod.EmailManagement.Mcp.Models;
 using Lod.EmailManagement.Mcp.Services;
 using Microsoft.AspNetCore.Authentication;
 
@@ -40,6 +41,24 @@ app.UseAuthorization();
 
 app.MapMcp("/mcp")
     .RequireAuthorization();
+
+app.MapGet("/api/attachments/download", async (
+    string mailboxId,
+    string folderId,
+    string itemId,
+    string attachmentId,
+    IMailboxService mailboxService,
+    CancellationToken cancellationToken) =>
+{
+    EmailAttachmentContent? attachment = await mailboxService.GetAttachment(mailboxId, folderId, itemId, attachmentId, cancellationToken);
+    if (attachment is null)
+    {
+        return Results.NotFound(new OperationResult(false, $"Attachment '{attachmentId}' not found for message '{itemId}' in folder '{folderId}'."));
+    }
+
+    byte[] bytes = Convert.FromBase64String(attachment.ContentBase64);
+    return Results.File(bytes, attachment.ContentType, attachment.FileName);
+}).RequireAuthorization();
 
 await app.RunAsync();
 

@@ -12,6 +12,7 @@ An ASP.NET Core service providing a Model Context Protocol (MCP) server for auto
 - **Message Inspection & Organization**:
   - Fetch message summaries with pagination and unread filters.
   - Retrieve full email details including plain text, HTML bodies, headers, and attachment metadata.
+  - Download file attachments via MCP tool (`download_attachment`) or direct authenticated HTTP binary streaming.
   - Move messages between folders.
   - Safely trash or archive messages (automatically resolves designated Trash and Archive folders and moves them internally).
   - Update message status by marking emails as read/unread and flagged/unflagged.
@@ -31,6 +32,7 @@ When connected via an MCP client, the following tools are exposed:
 | `create_folder` | `mailbox_id`, `folder_name`, `parent_folder_id?` | Creates a new folder or directory in the specified mailbox. |
 | `list_folder_items` | `mailbox_id`, `folder_id`, `limit?`, `offset?`, `unread_only?` | Lists email summaries in a folder with pagination. |
 | `get_item` | `mailbox_id`, `folder_id`, `item_id`, `include_body_html?` | Retrieves full email content, headers, body, and attachment metadata. |
+| `download_attachment` | `mailbox_id`, `folder_id`, `item_id`, `attachment_id` | Downloads an email attachment, returning metadata and base64 encoded content. |
 | `move_item` | `mailbox_id`, `source_folder_id`, `target_folder_id`, `item_id` | Moves an email message to a different target folder. |
 | `trash_item` | `mailbox_id`, `folder_id`, `item_id` | Moves an email message to the mailbox's designated Trash folder. |
 | `archive_item` | `mailbox_id`, `folder_id`, `item_id` | Moves an email message to the mailbox's designated Archive folder. |
@@ -178,6 +180,18 @@ All MCP endpoints require an authorized API key. You can pass the key in three w
 1. **Header**: `X-API-Key: <your-api-key>`
 2. **Authorization Header**: `Authorization: Bearer <your-api-key>`
 3. **Query Parameter**: `?apiKey=<your-api-key>` or `?api_key=<your-api-key>` (ideal for SSE `EventSource` clients)
+
+### Direct File Attachment Download (HTTP)
+
+In addition to the `download_attachment` MCP tool, attachments can be downloaded directly as binary files via HTTP:
+
+```http
+GET /api/attachments/download?mailboxId={mailboxId}&folderId={folderId}&itemId={itemId}&attachmentId={attachmentId}
+```
+
+- **Authentication**: Supports the same authentication mechanisms as the MCP endpoint (`X-API-Key` header, `Authorization: Bearer <key>`, or `?apiKey=<key>`).
+- **Response**: Streams the file binary directly with appropriate `Content-Type` and `Content-Disposition: attachment; filename="<filename>"` headers.
+- **Attachment Identification**: `attachmentId` can be the zero-based index (`"0"`, `"1"`), `ContentId`, or file name (e.g. `"report.pdf"`).
 
 ---
 

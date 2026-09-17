@@ -117,6 +117,11 @@ flowchart TD
     - Body (Plain text body, optional HTML body, snippet)
     - Attachment metadata (filename, content type, size, content id)
     - Flags (Seen, Flagged, Answered)
+- **Download Attachment**:
+  - MCP Tool: `download_attachment(mailbox_id, folder_id, item_id, attachment_id)`
+  - HTTP Endpoint: `GET /api/attachments/download?mailboxId={id}&folderId={folder}&itemId={uid}&attachmentId={attId}` (authenticated)
+  - Behavior: Resolves the attachment by identifier (zero-based index, `ContentId`, or file name) and decodes its payload.
+  - Returns: `EmailAttachmentContent` with base64 encoded payload for MCP tool calls, or streamed binary file download over HTTP.
 
 ### 4. Item Mutations
 
@@ -261,6 +266,13 @@ public record class EmailAttachmentMetadata(
     string FileName,
     string ContentType,
     long SizeInBytes);
+
+public record class EmailAttachmentContent(
+    string Id,
+    string FileName,
+    string ContentType,
+    long SizeInBytes,
+    string ContentBase64);
 
 public record class OperationResult(
     bool Success,
